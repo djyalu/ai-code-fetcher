@@ -65,20 +65,20 @@ const Index = () => {
   const syncProfile = async (user: any) => {
     try {
       const isSystemAdmin = user.email === ADMIN_EMAIL;
-      const { data: profile } = await supabase
-        .from('profiles')
+      const { data: profile } = await (supabase
+        .from('profiles' as any) as any)
         .select('*')
         .eq('id', user.id)
         .single();
 
       if (!profile) {
-        await supabase.from('profiles').insert({
+        await (supabase.from('profiles' as any) as any).insert({
           id: user.id,
           email: user.email,
           role: isSystemAdmin ? 'admin' : 'user'
         });
       } else if (isSystemAdmin && profile.role !== 'admin') {
-        await supabase.from('profiles').update({ role: 'admin' }).eq('id', user.id);
+        await (supabase.from('profiles' as any) as any).update({ role: 'admin' }).eq('id', user.id);
       }
     } catch (error) {
       console.error('Error syncing profile:', error);
@@ -115,14 +115,37 @@ const Index = () => {
     setIsLoading(true);
 
     try {
-      // Convert messages to API format
-      const conversationHistory = messages.map(m => ({
-        role: m.role as 'user' | 'assistant' | 'system',
-        content: m.content,
-      }));
+      // Clean conversation history to ensure alternating roles and better context
+      // This preventing consecutive assistant messages which causes some models to fail
+      const conversationHistory: { role: 'user' | 'assistant' | 'system', content: string }[] = [];
+      let tempAssistantContent = "";
+
+      messages.forEach(m => {
+        if (m.role === 'user') {
+          if (tempAssistantContent) {
+            conversationHistory.push({ role: 'assistant', content: tempAssistantContent });
+            tempAssistantContent = "";
+          }
+          conversationHistory.push({ role: 'user', content: m.content });
+        } else if (m.role === 'assistant') {
+          // If it's a synthesis, we prioritize it as the answer for this turn
+          if (m.content.includes('Synthesized Answer')) {
+            tempAssistantContent = m.content;
+          } else if (!tempAssistantContent.includes('Synthesized Answer')) {
+            // Otherwise accumulate individual responses but merge them
+            tempAssistantContent = tempAssistantContent
+              ? `${tempAssistantContent}\n\n${m.content}`
+              : m.content;
+          }
+        }
+      });
+
+      if (tempAssistantContent) {
+        conversationHistory.push({ role: 'assistant', content: tempAssistantContent });
+      }
 
       if (synthesisMode) {
-        // Double check permissions: filter out premium models if not logged in
+        // Double check permissions
         const allowedModelIds = session
           ? synthesisModelIds
           : synthesisModelIds.filter(id => !isPremiumModel(id));
@@ -131,29 +154,28 @@ const Index = () => {
           throw new Error('선택된 모델 중 사용 가능한 모델이 없습니다. (로그인이 필요할 수 있습니다)');
         }
 
-        // Synthesis mode: query multiple models and synthesize
         const result = await sendSynthesisRequest(content, conversationHistory, allowedModelIds);
 
-        // Add individual model responses (collapsed view)
-        for (const response of result.responses) {
-          setMessages(prev => [...prev, {
+        // Batch all responses to update state once
+        const newAssistantMessages: Message[] = [
+          ...result.responses.map(response => ({
             id: crypto.randomUUID(),
-            role: 'assistant',
+            role: 'assistant' as const,
             content: response.content,
             modelId: response.modelId,
             timestamp: new Date(),
-          }]);
-        }
+          })),
+          {
+            id: crypto.randomUUID(),
+            role: 'assistant' as const,
+            content: `**✨ Synthesized Answer**\n\n${result.synthesis}`,
+            timestamp: new Date(),
+          }
+        ];
 
-        // Add synthesized response
-        setMessages(prev => [...prev, {
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          content: `**✨ Synthesized Answer**\n\n${result.synthesis}`,
-          timestamp: new Date(),
-        }]);
+        setMessages(prev => [...prev, ...newAssistantMessages]);
 
-        // Save to DB
+        // Save synthesis to DB
         try {
           await (supabase.from('prompt_logs' as any) as any).insert({
             prompt: content,
@@ -170,7 +192,6 @@ const Index = () => {
           throw new Error('선택하신 모델은 프리미엄 모델입니다. 로그인이 필요합니다.');
         }
 
-        // Single model mode
         const response = await sendMessage(
           [...conversationHistory, { role: 'user', content }],
           selectedModel
