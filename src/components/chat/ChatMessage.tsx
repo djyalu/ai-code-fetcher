@@ -102,14 +102,14 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
         )}
 
         <div className={`inline-block text-left rounded-3xl px-5 py-4 transition-all duration-300 ${isUser
-          ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-tr-sm shadow-md'
-          : isSynthesized
-            ? 'bg-zinc-900/40 border border-amber-500/30 rounded-tl-sm backdrop-blur-xl shadow-2xl relative overflow-hidden'
-            : `glass border ${getProviderStyles(model?.provider)} rounded-tl-sm`
+            ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-tr-sm shadow-md'
+            : isSynthesized
+              ? 'bg-amber-50/50 dark:bg-amber-950/10 border border-amber-200 dark:border-amber-500/20 rounded-tl-sm backdrop-blur-xl shadow-xl relative overflow-hidden'
+              : `bg-white/80 dark:bg-zinc-900/40 border ${getProviderStyles(model?.provider)} rounded-tl-sm shadow-sm backdrop-blur-md`
           }`}>
           {isSynthesized && (
-            <div className="absolute top-0 right-0 p-4 opacity-5">
-              <Quote className="w-20 h-20 rotate-180" />
+            <div className="absolute top-0 right-0 p-4 opacity-[0.03] dark:opacity-[0.05] pointer-events-none">
+              <Quote className="w-24 h-24 rotate-180 text-amber-500" />
             </div>
           )}
 
