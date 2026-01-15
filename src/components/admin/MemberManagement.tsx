@@ -27,20 +27,24 @@ export const MemberManagement = ({ open, onOpenChange }: MemberManagementProps) 
     const fetchProfiles = async () => {
         setIsLoading(true);
         try {
-            // Note: profiles table may not exist - this is handled gracefully
-            const { data, error } = await supabase
-                .from('profiles' as never)
+            const { data, error } = await (supabase
+                .from('profiles' as any) as any)
                 .select('*')
                 .order('created_at', { ascending: false });
 
             if (error) {
-                console.log('Profiles not available:', error.message);
+                console.error('Profiles fetch error:', error);
+                toast({
+                    variant: 'destructive',
+                    title: '회원 목록 조회 실패',
+                    description: error.message
+                });
                 setProfiles([]);
                 return;
             }
             setProfiles((data as Profile[]) || []);
-        } catch (error: unknown) {
-            console.log('Profiles table not available');
+        } catch (error: any) {
+            console.error('Fatal Profiles error:', error);
             setProfiles([]);
         } finally {
             setIsLoading(false);

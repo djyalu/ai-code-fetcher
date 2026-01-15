@@ -6,6 +6,8 @@ import { format } from "date-fns";
 import { Search, Calendar, User, Cpu, FileText, Loader2, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { RefreshCw } from "lucide-react";
 
 interface PromptLog {
     id: string;
@@ -25,6 +27,7 @@ export const PromptHistory = ({ open, onOpenChange }: PromptHistoryProps) => {
     const [logs, setLogs] = useState<PromptLog[]>([]);
     const [loading, setLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+    const { toast } = useToast();
 
     useEffect(() => {
         if (open) {
@@ -34,18 +37,33 @@ export const PromptHistory = ({ open, onOpenChange }: PromptHistoryProps) => {
 
     const fetchLogs = async () => {
         setLoading(true);
-        const { data, error } = await (supabase
-            .from('prompt_logs' as any) as any)
-            .select('*')
-            .order('created_at', { ascending: false })
-            .limit(100);
+        try {
+            const { data, error } = await (supabase
+                .from('prompt_logs' as any) as any)
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(100);
 
-        if (error) {
-            console.error('Error fetching logs:', error);
-        } else {
-            setLogs(data || []);
+            if (error) {
+                console.error('Error fetching logs:', error);
+                toast({
+                    variant: 'destructive',
+                    title: '히스토리 조회 실패',
+                    description: error.message || '데이터베이스 연결을 확인해주세요.'
+                });
+            } else {
+                setLogs(data || []);
+            }
+        } catch (err: any) {
+            console.error('Fatal logs error:', err);
+            toast({
+                variant: 'destructive',
+                title: '예상치 못한 오류 발생',
+                description: '로그를 불러오는 중 문제가 발생했습니다.'
+            });
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     const filteredLogs = logs.filter(log =>
@@ -63,6 +81,15 @@ export const PromptHistory = ({ open, onOpenChange }: PromptHistoryProps) => {
                             <DialogTitle className="text-xl font-bold text-white flex items-center gap-2">
                                 <FileText className="w-5 h-5 text-indigo-400" />
                                 Prompt History
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 ml-2 text-zinc-500 hover:text-white"
+                                    onClick={fetchLogs}
+                                    disabled={loading}
+                                >
+                                    <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                                </Button>
                             </DialogTitle>
                             <p className="text-xs text-zinc-500">Explore all search prompts and results across models</p>
                         </div>

@@ -44,12 +44,14 @@ const Index = () => {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      if (session?.user) syncProfile(session.user);
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      if (session?.user) syncProfile(session.user);
       // If user logs out, and current selected model is premium, switch to free
       if (!session) {
         setSelectedModel(prev => isPremiumModel(prev) ? 'google/gemini-2.0-flash-exp:free' : prev);
@@ -59,6 +61,29 @@ const Index = () => {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const syncProfile = async (user: any) => {
+    try {
+      const isSystemAdmin = user.email === ADMIN_EMAIL;
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile) {
+        await supabase.from('profiles').insert({
+          id: user.id,
+          email: user.email,
+          role: isSystemAdmin ? 'admin' : 'user'
+        });
+      } else if (isSystemAdmin && profile.role !== 'admin') {
+        await supabase.from('profiles').update({ role: 'admin' }).eq('id', user.id);
+      }
+    } catch (error) {
+      console.error('Error syncing profile:', error);
+    }
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -129,12 +154,16 @@ const Index = () => {
         }]);
 
         // Save to DB
-        await (supabase.from('prompt_logs' as any) as any).insert({
-          prompt: content,
-          result: result.synthesis,
-          model_id: 'synthesis',
-          owner_email: session?.user?.email || 'anonymous',
-        });
+        try {
+          await (supabase.from('prompt_logs' as any) as any).insert({
+            prompt: content,
+            result: result.synthesis,
+            model_id: 'synthesis',
+            owner_email: session?.user?.email || 'anonymous',
+          });
+        } catch (e) {
+          console.warn('Could not save prompt log:', e);
+        }
       } else {
         // Check permission for single model
         if (!session && isPremiumModel(selectedModel)) {
@@ -157,12 +186,16 @@ const Index = () => {
         setMessages(prev => [...prev, aiMessage]);
 
         // Save to DB
-        await (supabase.from('prompt_logs' as any) as any).insert({
-          prompt: content,
-          result: response.content,
-          model_id: selectedModel,
-          owner_email: session?.user?.email || 'anonymous',
-        });
+        try {
+          await (supabase.from('prompt_logs' as any) as any).insert({
+            prompt: content,
+            result: response.content,
+            model_id: selectedModel,
+            owner_email: session?.user?.email || 'anonymous',
+          });
+        } catch (e) {
+          console.warn('Could not save prompt log:', e);
+        }
       }
     } catch (error) {
       console.error('Error sending message:', error);
