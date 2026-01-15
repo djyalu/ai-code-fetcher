@@ -128,6 +128,30 @@ Deno.serve(async (req) => {
           continue;
         }
 
+        // Final attempt failed due to rate limit -> fall back to Perplexity if configured
+        const perplexityKey = Deno.env.get('PERPLEXITY_API_KEY');
+        if (perplexityKey) {
+          console.warn(`Rate limited on OpenRouter. Falling back to Perplexity sonar for model: ${openRouterModel}`);
+          const fallback = await callPerplexity(perplexityKey, 'sonar', messages, stream);
+
+          if (!fallback.ok) {
+            const fallbackError = await fallback.text();
+            console.error(`Perplexity fallback error: ${fallback.status} - ${fallbackError}`);
+            throw new HttpError(`Perplexity API error: ${fallback.status}`, fallback.status);
+          }
+
+          const data = await fallback.json();
+          return new Response(JSON.stringify({
+            content: data.choices?.[0]?.message?.content || '',
+            model: data.model,
+            usage: data.usage,
+            citations: data.citations || [],
+            fallbackFrom: openRouterModel,
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
         lastError = new HttpError(
           'Rate limit exceeded. Please try again in a few seconds.',
           429
