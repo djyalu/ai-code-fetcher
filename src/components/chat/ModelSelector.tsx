@@ -1,6 +1,6 @@
 import { MODELS } from '@/constants/models';
 import { AIModel } from '@/types/chat';
-import { Check, ChevronDown, Sparkles, Settings, Lock } from 'lucide-react';
+import { Check, ChevronDown, Sparkles, Settings, Lock, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -30,7 +30,7 @@ const getProviderColor = (provider: string) => {
     case 'anthropic': return 'bg-anthropic';
     case 'google': return 'bg-google';
     case 'deepseek': return 'bg-deepseek';
-    case 'perplexity': return 'bg-emerald-500';
+    case 'perplexity': return 'bg-teal-500';
     default: return 'bg-primary';
   }
 };
@@ -72,95 +72,119 @@ export const ModelSelector = ({
 
     return (
       <TooltipProvider key={model.id}>
-        <Tooltip>
+        <Tooltip delayDuration={300}>
           <TooltipTrigger asChild>
             <DropdownMenuItem
               onClick={(e) => {
-                e.preventDefault();
+                if (synthesisMode) {
+                  e.preventDefault();
+                }
                 handleModelClick(model.id, isLocked);
               }}
-              className={`flex items-start gap-3 p-3 cursor-pointer transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800/50 ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`flex items-start gap-3 p-3 cursor-pointer transition-all duration-200 rounded-lg mx-1 my-0.5
+                ${isSelected && !synthesisMode ? 'bg-zinc-100/50 dark:bg-zinc-800/50' : 'hover:bg-zinc-100/30 dark:hover:bg-zinc-800/30'}
+                ${isLocked ? 'opacity-40 cursor-not-allowed grayscale-[0.5]' : 'opacity-100'}`}
             >
               {synthesisMode ? (
                 <Checkbox
                   checked={isSelected}
                   disabled={isLocked}
-                  className="mt-1"
+                  className="mt-1 data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500"
                 />
               ) : (
-                <div className={`mt-1 w-2 h-2 rounded-full shrink-0 ${getProviderColor(model.provider)}`} />
+                <div className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${getProviderColor(model.provider)} shadow-[0_0_8px_rgba(0,0,0,0.1)]`} />
               )}
 
               <div className="flex-1 space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium text-sm">{model.name}</span>
-                  {!synthesisMode && isSelected && <Check className="w-4 h-4 text-primary" />}
-                  {isLocked && <Lock className="w-3 h-3 text-zinc-500" />}
+                <div className="flex items-center justify-between gap-2">
+                  <span className={`text-sm font-medium ${isSelected ? 'text-foreground' : 'text-muted-foreground'} transition-colors`}>
+                    {model.name}
+                  </span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {!synthesisMode && isSelected && <Check className="w-3.5 h-3.5 text-primary animate-in zoom-in-50 duration-300" />}
+                    {isLocked && <Lock className="w-3 h-3 text-zinc-500" />}
+                  </div>
                 </div>
-                <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
+                <p className="text-[11px] text-muted-foreground/70 line-clamp-2 leading-snug">
                   {model.description}
                 </p>
               </div>
             </DropdownMenuItem>
           </TooltipTrigger>
-          {isLocked && (
-            <TooltipContent side="left">
-              <p>Login required for Premium models</p>
-            </TooltipContent>
-          )}
+          <TooltipContent side="left" className="glass-strong border-zinc-800 text-xs py-2 px-3 max-w-[200px]">
+            {isLocked ? (
+              <div className="flex items-center gap-2">
+                <Lock className="w-3 h-3 text-amber-500" />
+                <span>유료 모델은 로그인이 필요합니다.</span>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <div className="font-semibold text-zinc-300">{model.name}</div>
+                <div className="text-[10px] text-zinc-400">{model.description}</div>
+              </div>
+            )}
+          </TooltipContent>
         </Tooltip>
       </TooltipProvider>
     );
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2.5">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" className="gap-2 glass min-w-[160px] justify-between h-10 px-4">
-            <div className="flex items-center gap-2 truncate">
+          <Button variant="outline" className="gap-2.5 glass min-w-[180px] justify-between h-10 px-4 group transition-all duration-300 hover:border-zinc-700">
+            <div className="flex items-center gap-2.5 truncate">
               {synthesisMode ? (
                 <>
-                  <Sparkles className="w-4 h-4 text-amber-500" />
-                  <span className="truncate font-medium">{synthesisModelIds.length} Models</span>
+                  <div className="relative">
+                    <Sparkles className="w-4 h-4 text-amber-500 animate-pulse" />
+                    <div className="absolute -top-1 -right-1 w-2 h-2 bg-amber-500 rounded-full animate-ping opacity-75" />
+                  </div>
+                  <span className="truncate font-semibold text-amber-500/90">{synthesisModelIds.length} 모델 선택중</span>
                 </>
               ) : (
                 <>
-                  <div className={`w-2.5 h-2.5 rounded-full ${getProviderColor(currentModel.provider)} shadow-sm`} />
-                  <span className="truncate font-medium">{currentModel.name}</span>
+                  <div className={`w-2.5 h-2.5 rounded-full ${getProviderColor(currentModel.provider)} shadow-[0_0_10px_rgba(0,0,0,0.2)] group-hover:scale-110 transition-transform`} />
+                  <span className="truncate font-semibold text-zinc-200">{currentModel.name}</span>
                 </>
               )}
             </div>
-            <ChevronDown className="w-4 h-4 opacity-50 shrink-0" />
+            <ChevronDown className="w-4 h-4 opacity-30 group-hover:opacity-60 transition-opacity shrink-0" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-[320px] glass-strong p-1 p-b-2">
-          <div className="p-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-            {synthesisMode ? 'Select Models for Synthesis' : 'Select Chat Model'}
+        <DropdownMenuContent align="end" className="w-[340px] glass-strong p-1.5 border-zinc-800/50 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+          <div className="px-3 py-2.5 flex items-center justify-between">
+            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.1em]">
+              {synthesisMode ? 'SYNTHESIS 모델 멀티 선택' : '메인 AI 모델 선택'}
+            </span>
+            {synthesisMode && (
+              <span className="text-[10px] text-amber-500/80 font-medium">여러 모델을 동시에 질문합니다</span>
+            )}
           </div>
 
-          <div className="max-h-[400px] overflow-y-auto scrollbar-thin">
+          <div className="max-h-[450px] overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-800 pr-1">
             {/* Premium Models Group */}
             {premiumModels.length > 0 && (
-              <div className="space-y-0.5">
-                <div className="px-3 py-1.5 text-[10px] font-semibold text-amber-600/80 dark:text-amber-400/80 flex items-center gap-1.5">
-                  <div className="h-px flex-1 bg-amber-500/10" />
-                  PREMIUM MODELS
-                  <div className="h-px flex-1 bg-amber-500/10" />
+              <div className="mb-2">
+                <div className="px-3 py-2 flex items-center gap-2">
+                  <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-500/20 to-transparent" />
+                  <span className="text-[9px] font-black text-amber-500/60 uppercase tracking-widest">Premium AI Suite</span>
+                  <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-500/20 to-transparent" />
                 </div>
                 {premiumModels.map(renderModelItem)}
               </div>
             )}
 
-            {premiumModels.length > 0 && freeModels.length > 0 && <DropdownMenuSeparator className="my-1 bg-zinc-500/10" />}
+            {premiumModels.length > 0 && freeModels.length > 0 && <DropdownMenuSeparator className="mx-2 my-1.5 bg-zinc-800/50" />}
 
             {/* Free Models Group */}
             {freeModels.length > 0 && (
-              <div className="space-y-0.5">
-                <div className="px-3 py-1.5 text-[10px] font-semibold text-emerald-600/80 dark:text-emerald-400/80 flex items-center gap-1.5">
-                  <div className="h-px flex-1 bg-emerald-500/10" />
-                  FREE RESEARCH MODELS
-                  <div className="h-px flex-1 bg-emerald-500/10" />
+              <div>
+                <div className="px-3 py-2 flex items-center gap-2">
+                  <div className="h-px flex-1 bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent" />
+                  <span className="text-[9px] font-black text-emerald-500/60 uppercase tracking-widest">Free Research Suite</span>
+                  <div className="h-px flex-1 bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent" />
                 </div>
                 {freeModels.map(renderModelItem)}
               </div>
@@ -169,7 +193,7 @@ export const ModelSelector = ({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2.5">
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -177,17 +201,20 @@ export const ModelSelector = ({
                 variant={synthesisMode ? 'default' : 'outline'}
                 size="sm"
                 onClick={onToggleSynthesis}
-                className={`gap-2 h-10 px-4 transition-all duration-300 ${synthesisMode
-                  ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20'
-                  : 'glass hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                className={`gap-2 h-10 px-5 transition-all duration-500 relative overflow-hidden group/btn ${synthesisMode
+                    ? 'bg-amber-600 hover:bg-amber-500 text-white shadow-[0_0_20px_rgba(245,158,11,0.3)] border-amber-400/50'
+                    : 'glass hover:bg-zinc-100/10 hover:border-zinc-600'
                   }`}
               >
-                <Sparkles className={`w-4 h-4 ${synthesisMode ? 'animate-pulse' : 'text-zinc-400'}`} />
-                <span className="hidden sm:inline font-medium">Synthesis</span>
+                {synthesisMode && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover/btn:translate-x-full transition-transform duration-1000" />
+                )}
+                <Sparkles className={`w-4 h-4 ${synthesisMode ? 'animate-pulse' : 'text-zinc-500 group-hover:text-amber-500 transition-colors'}`} />
+                <span className="hidden sm:inline font-bold tracking-tight">Synthesis</span>
               </Button>
             </TooltipTrigger>
-            <TooltipContent>
-              <p>{synthesisMode ? 'Disable' : 'Enable'} Multi-Model Synthesis</p>
+            <TooltipContent className="glass-strong border-zinc-800">
+              <p className="text-xs">{synthesisMode ? 'Synthesis 모드 끄기' : '여러 AI의 답변을 하나로 합치기'}</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -197,14 +224,13 @@ export const ModelSelector = ({
             variant="ghost"
             size="icon"
             onClick={onConfigureSynthesis}
-            className="h-10 w-10 glass hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-            title="Configure Synthesis Models"
+            className="h-10 w-10 glass hover:bg-zinc-100/10 hover:text-white transition-all duration-300"
+            title="시스템 설정"
           >
-            <Settings className="w-4 h-4 text-zinc-400" />
+            <Settings className="w-4 h-4 text-zinc-500 hover:rotate-90 transition-transform duration-500" />
           </Button>
         )}
       </div>
     </div>
   );
 };
-
