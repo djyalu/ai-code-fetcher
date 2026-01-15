@@ -6,22 +6,54 @@ import { SystemControl } from '@/components/chat/SystemControl';
 import { ChatMessage } from '@/components/chat/ChatMessage';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { sendMessage, sendSynthesisRequest } from '@/services/chatService';
-import { Bot, Sparkles, Zap, AlertCircle } from 'lucide-react';
+import { Zap, LogOut, User, Bot, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { Session } from '@supabase/supabase-js';
+import { AuthDialog } from '@/components/auth/AuthDialog';
+import { Button } from '@/components/ui/button';
+
+const ADMIN_EMAIL = 'go41@naver.com';
 
 const Index = () => {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [selectedModel, setSelectedModel] = useState('gpt-4o');
+  const [selectedModel, setSelectedModel] = useState('google/gemini-2.0-flash-exp:free'); // Default to a free model
   const [synthesisMode, setSynthesisMode] = useState(false);
   const [synthesisModelIds, setSynthesisModelIds] = useState<string[]>(SYNTHESIS_MODELS);
   const [isSystemControlOpen, setIsSystemControlOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
+  const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+
+  const isAdmin = session?.user?.email === ADMIN_EMAIL;
+  // If not logged in, user is limited to Free models (inputPrice === 0)
+  // Logic handled in ModelSelector, but we also ensure selectedModel is valid here
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    toast({ title: 'Logged out' });
+  };
 
   const handleSendMessage = async (content: string) => {
     const userMessage: Message = {
@@ -110,12 +142,26 @@ const Index = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {session ? (
+            <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-2 text-zinc-500 hover:text-white">
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Logout</span>
+            </Button>
+          ) : (
+            <Button variant="ghost" size="sm" onClick={() => setIsAuthDialogOpen(true)} className="gap-2 text-zinc-500 hover:text-white">
+              <User className="w-4 h-4" />
+              <span className="hidden sm:inline">Login</span>
+            </Button>
+          )}
+
           <ModelSelector
             selectedModel={selectedModel}
             onSelectModel={setSelectedModel}
             synthesisMode={synthesisMode}
             onToggleSynthesis={() => setSynthesisMode(!synthesisMode)}
             onConfigureSynthesis={() => setIsSystemControlOpen(true)}
+            isLoggedIn={!!session}
+            isAdmin={isAdmin}
           />
         </div>
       </header>
@@ -125,7 +171,10 @@ const Index = () => {
         onOpenChange={setIsSystemControlOpen}
         selectedModelIds={synthesisModelIds}
         onApply={setSynthesisModelIds}
+        isAdmin={isAdmin}
       />
+
+      <AuthDialog open={isAuthDialogOpen} onOpenChange={setIsAuthDialogOpen} />
 
       {/* Messages */}
       <main className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-thin">
