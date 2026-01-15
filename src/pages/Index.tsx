@@ -25,6 +25,10 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
+  const [promptHistory, setPromptHistory] = useState<string[]>(() => {
+    const saved = localStorage.getItem('prompt_history');
+    return saved ? JSON.parse(saved) : [];
+  });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -74,6 +78,15 @@ const Index = () => {
     };
 
     setMessages(prev => [...prev, userMessage]);
+
+    // Update prompt history (only for free/all users locally)
+    setPromptHistory(prev => {
+      const filtered = prev.filter(p => p !== content);
+      const newHistory = [content, ...filtered].slice(0, 3);
+      localStorage.setItem('prompt_history', JSON.stringify(newHistory));
+      return newHistory;
+    });
+
     setIsLoading(true);
 
     try {
@@ -218,11 +231,12 @@ const Index = () => {
               Synthesis 모드로 여러 모델의 답변을 종합할 수도 있습니다.
             </p>
             <div className="flex flex-wrap gap-3 justify-center">
-              {['한국의 수도는?', '코딩 도와줘', '아이디어 추천해줘'].map((suggestion) => (
+              {(promptHistory.length > 0 ? promptHistory : ['한국의 수도는?', '코딩 도와줘', '아이디어 추천해줘']).map((suggestion) => (
                 <button
                   key={suggestion}
                   onClick={() => handleSendMessage(suggestion)}
-                  className="glass px-4 py-2 rounded-full text-sm hover:bg-secondary transition-colors"
+                  className="glass px-5 py-2.5 rounded-full text-[13px] font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all border border-zinc-200 dark:border-zinc-800 shadow-sm hover:shadow-md active:scale-95 truncate max-w-[250px]"
+                  title={suggestion}
                 >
                   {suggestion}
                 </button>
