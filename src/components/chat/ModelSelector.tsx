@@ -146,11 +146,11 @@ export const ModelSelector = ({
               ) : (
                 <>
                   <div className={`w-2.5 h-2.5 rounded-full ${getProviderColor(currentModel.provider)} shadow-[0_0_10px_rgba(0,0,0,0.2)] group-hover:scale-110 transition-transform`} />
-                  <span className="truncate font-semibold text-zinc-200">{currentModel.name}</span>
+                  <span className="truncate font-bold text-[13px] text-zinc-900 dark:text-zinc-100">{currentModel.name}</span>
                 </>
               )}
             </div>
-            <ChevronDown className="w-4 h-4 opacity-30 group-hover:opacity-60 transition-opacity shrink-0" />
+            <ChevronDown className="w-4 h-4 text-zinc-400 opacity-50 group-hover:opacity-100 transition-opacity shrink-0" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-[340px] glass-strong p-1.5 border-zinc-800/50 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
@@ -202,8 +202,8 @@ export const ModelSelector = ({
                 size="sm"
                 onClick={onToggleSynthesis}
                 className={`gap-2 h-10 px-5 transition-all duration-500 relative overflow-hidden group/btn ${synthesisMode
-                    ? 'bg-amber-600 hover:bg-amber-500 text-white shadow-[0_0_20px_rgba(245,158,11,0.3)] border-amber-400/50'
-                    : 'glass hover:bg-zinc-100/10 hover:border-zinc-600'
+                  ? 'bg-amber-600 hover:bg-amber-500 text-white shadow-[0_0_20px_rgba(245,158,11,0.3)] border-amber-400/50'
+                  : 'glass hover:bg-zinc-100/10 hover:border-zinc-600'
                   }`}
               >
                 {synthesisMode && (
