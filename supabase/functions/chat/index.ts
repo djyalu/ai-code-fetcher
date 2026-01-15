@@ -80,7 +80,16 @@ Deno.serve(async (req) => {
 
     // Retry logic with exponential backoff
     const maxRetries = 3;
-    let lastError: Error | null = null;
+
+    class HttpError extends Error {
+      status: number;
+      constructor(message: string, status: number) {
+        super(message);
+        this.status = status;
+      }
+    }
+
+    let lastError: HttpError | null = null;
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       const response = await callOpenRouter(apiKey, openRouterModel, messages, stream);
@@ -94,14 +103,20 @@ Deno.serve(async (req) => {
           await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
           continue;
         }
-        lastError = new Error('Rate limit exceeded. Please try again in a few seconds.');
+
+        lastError = new HttpError(
+          'Rate limit exceeded. Please try again in a few seconds.',
+          429
+        );
         break;
       }
 
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`OpenRouter API error: ${response.status} - ${errorText}`);
-        lastError = new Error(`OpenRouter API error: ${response.status}`);
+
+        // Retry transient errors, but preserve the upstream status code
+        lastError = new HttpError(`OpenRouter API error: ${response.status}`, response.status);
         if (attempt < maxRetries - 1) {
           await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
           continue;
@@ -134,14 +149,17 @@ Deno.serve(async (req) => {
       });
     }
 
-    throw lastError || new Error('Failed after retries');
+    throw lastError || new HttpError('Failed after retries', 500);
   } catch (error: unknown) {
+    const status = typeof (error as any)?.status === 'number' ? (error as any).status : 500;
+
     const errorMessage = error instanceof Error ? error.message : 'Internal server error';
     console.error('Error in chat function:', errorMessage);
+
     return new Response(JSON.stringify({
       error: errorMessage
     }), {
-      status: 500,
+      status,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
