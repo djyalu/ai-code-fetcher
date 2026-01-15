@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { Message } from '@/types/chat';
-import { MODELS, SYNTHESIS_MODELS } from '@/constants/models';
+import { MODELS, SYNTHESIS_MODELS, getModelById } from '@/constants/models';
 import { ModelSelector } from '@/components/chat/ModelSelector';
 import { ChatMessage } from '@/components/chat/ChatMessage';
 import { ChatInput } from '@/components/chat/ChatInput';
-import { Bot, Sparkles, Zap } from 'lucide-react';
+import { sendMessage, sendSynthesisRequest } from '@/services/chatService';
+import { Bot, Sparkles, Zap, AlertCircle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 const Index = () => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -12,6 +14,7 @@ const Index = () => {
   const [synthesisMode, setSynthesisMode] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -28,21 +31,66 @@ const Index = () => {
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
 
-    // Simulate AI response (실제 구현시 API 호출 필요)
-    setTimeout(() => {
-      const model = MODELS.find(m => m.id === selectedModel);
-      const aiMessage: Message = {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: synthesisMode 
-          ? `**[Synthesis Mode]**\n\n여러 AI 모델의 응답을 종합한 결과입니다.\n\n귀하의 질문 "${content}"에 대해:\n\n각 모델(GPT-4o, Claude, Gemini, DeepSeek)의 분석을 종합하면, 이 질문에 대한 가장 정확하고 포괄적인 답변은 다음과 같습니다...\n\n*실제 구현을 위해서는 API 키 설정이 필요합니다.*`
-          : `안녕하세요! ${model?.name || 'AI'}입니다.\n\n"${content}"에 대한 답변을 드리겠습니다.\n\n이것은 데모 응답입니다. 실제 AI 응답을 받으려면 API 키를 설정해주세요.`,
-        modelId: synthesisMode ? undefined : selectedModel,
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, aiMessage]);
+    try {
+      // Convert messages to API format
+      const conversationHistory = messages.map(m => ({
+        role: m.role as 'user' | 'assistant' | 'system',
+        content: m.content,
+      }));
+
+      if (synthesisMode) {
+        // Synthesis mode: query multiple models and synthesize
+        const result = await sendSynthesisRequest(content, conversationHistory);
+        
+        // Add individual model responses (collapsed view)
+        for (const response of result.responses) {
+          const model = getModelById(response.modelId);
+          setMessages(prev => [...prev, {
+            id: crypto.randomUUID(),
+            role: 'assistant',
+            content: response.content,
+            modelId: response.modelId,
+            timestamp: new Date(),
+          }]);
+        }
+
+        // Add synthesized response
+        setMessages(prev => [...prev, {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: `**✨ Synthesized Answer**\n\n${result.synthesis}`,
+          timestamp: new Date(),
+        }]);
+      } else {
+        // Single model mode
+        const response = await sendMessage(
+          [...conversationHistory, { role: 'user', content }],
+          selectedModel
+        );
+
+        const aiMessage: Message = {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: response.content,
+          modelId: selectedModel,
+          timestamp: new Date(),
+        };
+        setMessages(prev => [...prev, aiMessage]);
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast({
+        variant: 'destructive',
+        title: '오류 발생',
+        description: (error as Error).message || 'AI 응답을 받는 데 실패했습니다.',
+      });
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
+  };
+
+  const handleClearChat = () => {
+    setMessages([]);
   };
 
   return (
@@ -79,7 +127,7 @@ const Index = () => {
               Synthesis 모드로 여러 모델의 답변을 종합할 수도 있습니다.
             </p>
             <div className="flex flex-wrap gap-3 justify-center">
-              {['오늘 날씨 어때?', '코딩 도와줘', '아이디어 추천해줘'].map((suggestion) => (
+              {['한국의 수도는?', '코딩 도와줘', '아이디어 추천해줘'].map((suggestion) => (
                 <button
                   key={suggestion}
                   onClick={() => handleSendMessage(suggestion)}
