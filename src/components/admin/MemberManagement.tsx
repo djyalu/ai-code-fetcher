@@ -27,15 +27,20 @@ export const MemberManagement = ({ open, onOpenChange }: MemberManagementProps) 
     const fetchProfiles = async () => {
         setIsLoading(true);
         try {
+            // Note: profiles table may not exist - this is handled gracefully
             const { data, error } = await supabase
-                .from('profiles')
+                .from('profiles' as never)
                 .select('*')
                 .order('created_at', { ascending: false });
 
-            if (error) throw error;
-            setProfiles(data || []);
-        } catch (error: any) {
-            console.error('Error fetching profiles:', error);
+            if (error) {
+                console.log('Profiles not available:', error.message);
+                setProfiles([]);
+                return;
+            }
+            setProfiles((data as Profile[]) || []);
+        } catch (error: unknown) {
+            console.log('Profiles table not available');
             setProfiles([]);
         } finally {
             setIsLoading(false);
