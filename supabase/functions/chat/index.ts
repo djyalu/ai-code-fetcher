@@ -24,7 +24,7 @@ const MODEL_MAP: Record<string, string> = {
   'gemini-2.0-flash': 'google/gemini-2.0-flash-exp:free',
   'gemini-1.5-pro': 'google/gemini-pro-1.5',
   'deepseek-chat': 'deepseek/deepseek-chat',
-  
+
   // Free models - using correct OpenRouter IDs
   'google/gemini-2.0-flash-exp:free': 'google/gemini-2.0-flash-exp:free',
   'nvidia/llama-3.1-nemotron-70b-instruct:free': 'nvidia/llama-3.1-nemotron-70b-instruct:free',
@@ -34,7 +34,7 @@ const MODEL_MAP: Record<string, string> = {
   'google/gemma-3-27b-it:free': 'google/gemma-3-27b-it:free',
   'meta-llama/llama-3.3-70b-instruct:free': 'meta-llama/llama-3.3-70b-instruct:free',
   'microsoft/phi-4:free': 'microsoft/phi-4:free',
-  
+
   'perplexity/sonar': 'perplexity/sonar',
   'perplexity/sonar-deep-research': 'perplexity/sonar-deep-research',
 };
@@ -222,30 +222,6 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Final attempt failed due to rate limit -> fall back to Perplexity if configured
-        const perplexityKey = Deno.env.get('PERPLEXITY_API_KEY');
-        if (perplexityKey) {
-          console.warn(`Rate limited on OpenRouter. Falling back to Perplexity sonar for model: ${mappedModel}`);
-          const fallback = await callPerplexity(perplexityKey, 'sonar', messages, stream);
-
-          if (!fallback.ok) {
-            const fallbackError = await fallback.text();
-            console.error(`Perplexity fallback error: ${fallback.status} - ${fallbackError}`);
-            throw new HttpError(`Perplexity API error: ${fallback.status}`, fallback.status);
-          }
-
-          const data = await fallback.json();
-          return new Response(JSON.stringify({
-            content: data.choices?.[0]?.message?.content || '',
-            model: data.model,
-            usage: data.usage,
-            citations: data.citations || [],
-            fallbackFrom: mappedModel,
-          }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
-        }
-
         lastError = new HttpError(
           'Rate limit exceeded. Please try again in a few seconds.',
           429
@@ -256,32 +232,6 @@ Deno.serve(async (req) => {
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`OpenRouter API error: ${response.status} - ${errorText}`);
-
-        // If the selected OpenRouter model is unavailable (404), fall back to Perplexity Sonar
-        if (response.status === 404) {
-          const perplexityKey = Deno.env.get('PERPLEXITY_API_KEY');
-          if (perplexityKey) {
-            console.warn(`OpenRouter model unavailable. Falling back to Perplexity sonar for model: ${mappedModel}`);
-            const fallback = await callPerplexity(perplexityKey, 'sonar', messages, stream);
-
-            if (!fallback.ok) {
-              const fallbackError = await fallback.text();
-              console.error(`Perplexity fallback error: ${fallback.status} - ${fallbackError}`);
-              throw new HttpError(`Perplexity API error: ${fallback.status}`, fallback.status);
-            }
-
-            const data = await fallback.json();
-            return new Response(JSON.stringify({
-              content: data.choices?.[0]?.message?.content || '',
-              model: data.model,
-              usage: data.usage,
-              citations: data.citations || [],
-              fallbackFrom: mappedModel,
-            }), {
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            });
-          }
-        }
 
         // Retry transient errors, but preserve the upstream status code
         lastError = new HttpError(`OpenRouter API error: ${response.status}`, response.status);
