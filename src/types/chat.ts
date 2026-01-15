@@ -16,6 +16,7 @@ export interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
   modelId?: string;
+  isSynthesis?: boolean;
   timestamp: Date;
   isStreaming?: boolean;
 }

@@ -168,7 +168,8 @@ const Index = () => {
           {
             id: crypto.randomUUID(),
             role: 'assistant' as const,
-            content: `**✨ Synthesized Answer**\n\n${result.synthesis}`,
+            content: result.synthesis, // Remove prefix here, handled by ChatMessage
+            isSynthesis: true,
             timestamp: new Date(),
           }
         ];

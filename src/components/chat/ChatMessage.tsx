@@ -26,7 +26,7 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
   const { toast } = useToast();
   const isUser = message.role === 'user';
   const model = message.modelId ? getModelById(message.modelId) : null;
-  const isSynthesized = message.content.includes('Synthesized Answer');
+  const isSynthesized = !!message.isSynthesis;
 
   // Filter out citation markers like [1], [2], [1][2]
   const cleanContent = (content: string) => {
@@ -110,6 +110,15 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
           {isSynthesized && (
             <div className="absolute top-0 right-0 p-4 opacity-[0.03] dark:opacity-[0.05] pointer-events-none">
               <Quote className="w-24 h-24 rotate-180 text-amber-500" />
+            </div>
+          )}
+
+          {isSynthesized && (
+            <div className="mb-4 pb-4 border-b border-amber-500/10">
+              <h3 className="text-base font-black text-amber-600 dark:text-amber-400 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 fill-current" />
+                Synthesized Answer
+              </h3>
             </div>
           )}
 
