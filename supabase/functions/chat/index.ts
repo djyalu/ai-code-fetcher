@@ -39,6 +39,35 @@ const MODEL_MAP: Record<string, string> = {
   'perplexity/sonar-deep-research': 'perplexity/sonar-deep-research',
 };
 
+function sanitizeMessagesForModel(model: string, messages: ChatMessage[]): ChatMessage[] {
+  // Some upstream providers (notably Google AI Studio for Gemma IT) reject "developer/system" instructions.
+  // When we detect those models, we remove system messages and fold them into the first user message.
+  if (model.includes('google/gemma-3-27b-it')) {
+    const systemText = messages
+      .filter((m) => m.role === 'system')
+      .map((m) => m.content)
+      .join('\n');
+
+    const nonSystem = messages.filter((m) => m.role !== 'system');
+
+    if (!systemText) return nonSystem;
+
+    if (nonSystem.length > 0 && nonSystem[0].role === 'user') {
+      return [
+        {
+          role: 'user',
+          content: `${systemText}\n\n${nonSystem[0].content}`,
+        },
+        ...nonSystem.slice(1),
+      ];
+    }
+
+    return [{ role: 'user', content: systemText }, ...nonSystem];
+  }
+
+  return messages;
+}
+
 async function callPerplexity(
   apiKey: string,
   model: string,
@@ -102,6 +131,13 @@ Deno.serve(async (req) => {
     const openRouterModel = MODEL_MAP[model] || model;
     console.log(`Mapped to OpenRouter model: ${openRouterModel}`);
 
+    const effectiveMessages = sanitizeMessagesForModel(openRouterModel, messages);
+    if (effectiveMessages !== messages) {
+      console.log(
+        `Sanitized messages for model ${openRouterModel}: ${messages.length} -> ${effectiveMessages.length}`
+      );
+    }
+
     // Retry logic with exponential backoff
     const maxRetries = 3;
 
@@ -116,7 +152,7 @@ Deno.serve(async (req) => {
     let lastError: HttpError | null = null;
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
-      const response = await callOpenRouter(apiKey, openRouterModel, messages, stream);
+      const response = await callOpenRouter(apiKey, openRouterModel, effectiveMessages, stream);
 
       if (response.status === 429) {
         const errorText = await response.text();
