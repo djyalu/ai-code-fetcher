@@ -103,16 +103,6 @@ export const MODELS: AIModel[] = [
     color: '#34a853',
   },
   {
-    id: 'xiaomi/mimo-v2-flash:free',
-    name: 'Mimo V2 Flash',
-    provider: 'openrouter',
-    description: '논리 추론. 복잡한 질문에 대해 원인을 분석하고 체계적으로 답변합니다.',
-    inputPrice: 0,
-    outputPrice: 0,
-    contextWindow: 268288,
-    color: '#ff6900',
-  },
-  {
     id: 'nvidia/nemotron-3-nano-30b-a3b:free',
     name: 'Nemotron-3 Nano',
     provider: 'nvidia',
