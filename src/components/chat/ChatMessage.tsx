@@ -48,10 +48,10 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
   return (
     <div className={`flex gap-4 animate-fade-in group ${isUser ? 'flex-row-reverse' : ''}`}>
       <div className={`flex-shrink-0 w-10 h-10 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-105 ${isUser
-          ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-lg'
-          : isSynthesized
-            ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg shadow-amber-500/20'
-            : 'glass border border-white/10 shadow-lg'
+        ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-lg'
+        : isSynthesized
+          ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg shadow-amber-500/20'
+          : 'glass border border-white/10 shadow-lg'
         }`}>
         {isUser ? (
           <User className="w-5 h-5" />
@@ -102,10 +102,10 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
         )}
 
         <div className={`inline-block text-left rounded-3xl px-5 py-4 transition-all duration-300 ${isUser
-            ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-tr-sm shadow-md'
-            : isSynthesized
-              ? 'bg-zinc-900/40 border border-amber-500/30 rounded-tl-sm backdrop-blur-xl shadow-2xl relative overflow-hidden'
-              : `glass border ${getProviderStyles(model?.provider)} rounded-tl-sm`
+          ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-tr-sm shadow-md'
+          : isSynthesized
+            ? 'bg-zinc-900/40 border border-amber-500/30 rounded-tl-sm backdrop-blur-xl shadow-2xl relative overflow-hidden'
+            : `glass border ${getProviderStyles(model?.provider)} rounded-tl-sm`
           }`}>
           {isSynthesized && (
             <div className="absolute top-0 right-0 p-4 opacity-5">
@@ -123,29 +123,32 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
-                  h1: ({ node, ...props }) => <h1 className="text-lg font-bold text-zinc-100 border-b border-white/5 pb-2" {...props} />,
-                  h2: ({ node, ...props }) => <h2 className="text-md font-bold text-zinc-200 mt-4" {...props} />,
-                  h3: ({ node, ...props }) => <h3 className="text-sm font-bold text-zinc-300 mt-3" {...props} />,
+                  h1: ({ node, ...props }) => <h1 className="text-xl font-extrabold text-zinc-950 dark:text-white border-b border-zinc-200 dark:border-zinc-800 pb-3 mb-5" {...props} />,
+                  h2: ({ node, ...props }) => <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mt-8 mb-4 flex items-center gap-2" {...props} />,
+                  h3: ({ node, ...props }) => <h3 className="text-base font-bold text-zinc-800 dark:text-zinc-200 mt-6 mb-3" {...props} />,
+                  p: ({ node, ...props }) => <p className="text-zinc-900 dark:text-zinc-100 leading-relaxed mb-4 font-medium" {...props} />,
+                  li: ({ node, ...props }) => <li className="text-zinc-900 dark:text-zinc-100 mb-2 font-medium" {...props} />,
+                  strong: ({ node, ...props }) => <strong className="font-black text-zinc-950 dark:text-white" {...props} />,
                   code: ({ node, className, children, ...props }) => {
                     const match = /language-(\w+)/.exec(className || '');
                     return (
-                      <code className={`${className} bg-zinc-800/50 rounded px-1.5 py-0.5 text-xs font-mono`} {...props}>
+                      <code className={`${className} bg-zinc-200 dark:bg-zinc-800 text-zinc-950 dark:text-zinc-200 rounded px-1.5 py-0.5 text-[0.85rem] font-mono font-bold`} {...props}>
                         {children}
                       </code>
                     );
                   },
                   pre: ({ node, ...props }) => (
-                    <pre className="bg-zinc-950/50 border border-white/5 rounded-xl p-4 my-4 overflow-x-auto scrollbar-thin" {...props} />
+                    <pre className="bg-zinc-100 dark:bg-zinc-950/50 border border-zinc-200 dark:border-white/5 rounded-xl p-5 my-6 overflow-x-auto scrollbar-thin shadow-inner" {...props} />
                   ),
                   table: ({ node, ...props }) => (
-                    <div className="overflow-x-auto my-6 rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm">
-                      <table className="min-w-full divide-y divide-white/10" {...props} />
+                    <div className="overflow-x-auto my-8 rounded-xl border border-zinc-300 dark:border-white/10 bg-white dark:bg-white/5 shadow-md">
+                      <table className="min-w-full divide-y divide-zinc-200 dark:divide-white/10" {...props} />
                     </div>
                   ),
-                  thead: ({ node, ...props }) => <thead className="bg-white/5" {...props} />,
-                  th: ({ node, ...props }) => <th className="px-4 py-3 text-left text-[11px] font-bold text-zinc-400 uppercase tracking-wider" {...props} />,
-                  td: ({ node, ...props }) => <td className="px-4 py-3 text-sm text-zinc-300 border-t border-white/5" {...props} />,
-                  tr: ({ node, ...props }) => <tr className="hover:bg-white/[0.02] transition-colors" {...props} />
+                  thead: ({ node, ...props }) => <thead className="bg-zinc-100 dark:bg-white/5" {...props} />,
+                  th: ({ node, ...props }) => <th className="px-4 py-3.5 text-left text-xs font-black text-zinc-700 dark:text-zinc-300 uppercase tracking-widest" {...props} />,
+                  td: ({ node, ...props }) => <td className="px-4 py-3.5 text-sm text-zinc-950 dark:text-zinc-200 border-t border-zinc-200 dark:border-white/5 font-semibold" {...props} />,
+                  tr: ({ node, ...props }) => <tr className="hover:bg-zinc-50 dark:hover:bg-white/[0.02] transition-colors" {...props} />
                 }}
               >
                 {processedContent}
@@ -154,7 +157,7 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
           )}
         </div>
 
-        <div className={`text-[9px] text-zinc-500 mt-2 px-2 font-medium tracking-tight ${isUser ? 'text-right' : 'text-left'}`}>
+        <div className={`text-[9px] text-zinc-500 mt-2 px-2 font-bold tracking-tight ${isUser ? 'text-right' : 'text-left'}`}>
           {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </div>
       </div>
