@@ -1,10 +1,12 @@
 import { Message } from '@/types/chat';
 import { getModelById } from '@/constants/models';
-import { User, Bot, Loader2, Sparkles, Quote, Copy, Check, Table as TableIcon } from 'lucide-react';
+import { User, Bot, Loader2, Sparkles, Quote, Copy, Check } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+
+const Markdown = ReactMarkdown as any;
 
 interface ChatMessageProps {
   message: Message;
@@ -12,12 +14,18 @@ interface ChatMessageProps {
 
 const getProviderStyles = (provider?: string) => {
   switch (provider) {
-    case 'openai': return 'border-openai/20 bg-openai/5 shadow-[0_0_15px_rgba(16,163,127,0.05)]';
-    case 'anthropic': return 'border-anthropic/20 bg-anthropic/5 shadow-[0_0_15px_rgba(204,120,92,0.05)]';
-    case 'google': return 'border-google/20 bg-google/5 shadow-[0_0_15px_rgba(66,133,244,0.05)]';
-    case 'deepseek': return 'border-deepseek/20 bg-deepseek/5 shadow-[0_0_15px_rgba(88,101,242,0.05)]';
-    case 'perplexity': return 'border-teal-500/20 bg-teal-500/5 shadow-[0_0_15px_rgba(20,178,170,0.05)]';
-    default: return 'border-white/10 bg-white/5 shadow-xl';
+    case 'openai':
+      return 'border-openai/20 bg-openai/5 shadow-[0_0_15px_rgba(16,163,127,0.05)]';
+    case 'anthropic':
+      return 'border-anthropic/20 bg-anthropic/5 shadow-[0_0_15px_rgba(204,120,92,0.05)]';
+    case 'google':
+      return 'border-google/20 bg-google/5 shadow-[0_0_15px_rgba(66,133,244,0.05)]';
+    case 'deepseek':
+      return 'border-deepseek/20 bg-deepseek/5 shadow-[0_0_15px_rgba(88,101,242,0.05)]';
+    case 'perplexity':
+      return 'border-teal-500/20 bg-teal-500/5 shadow-[0_0_15px_rgba(20,178,170,0.05)]';
+    default:
+      return 'border-white/10 bg-white/5 shadow-xl';
   }
 };
 
@@ -39,20 +47,136 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
     navigator.clipboard.writeText(processedContent);
     setCopied(true);
     toast({
-      description: "답변이 클립보드에 복사되었습니다.",
+      description: '답변이 클립보드에 복사되었습니다.',
       duration: 2000,
     });
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // react-markdown can attach refs to custom renderers. Use forwardRef wrappers to avoid warnings.
+  const markdownComponents: any = useMemo(() => {
+    const H1 = React.forwardRef<HTMLHeadingElement, any>(({ node, ...props }, ref) => (
+      <h1
+        ref={ref}
+        className="text-xl font-extrabold text-zinc-950 dark:text-white border-b border-zinc-200 dark:border-zinc-800 pb-3 mb-5"
+        {...props}
+      />
+    ));
+    H1.displayName = 'MarkdownH1';
+
+    const H2 = React.forwardRef<HTMLHeadingElement, any>(({ node, ...props }, ref) => (
+      <h2
+        ref={ref}
+        className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mt-8 mb-4 flex items-center gap-2"
+        {...props}
+      />
+    ));
+    H2.displayName = 'MarkdownH2';
+
+    const H3 = React.forwardRef<HTMLHeadingElement, any>(({ node, ...props }, ref) => (
+      <h3 ref={ref} className="text-base font-bold text-zinc-800 dark:text-zinc-200 mt-6 mb-3" {...props} />
+    ));
+    H3.displayName = 'MarkdownH3';
+
+    const P = React.forwardRef<HTMLParagraphElement, any>(({ node, ...props }, ref) => (
+      <p ref={ref} className="text-zinc-900 dark:text-zinc-100 leading-relaxed mb-4 font-medium" {...props} />
+    ));
+    P.displayName = 'MarkdownP';
+
+    const LI = React.forwardRef<HTMLLIElement, any>(({ node, ...props }, ref) => (
+      <li ref={ref} className="text-zinc-900 dark:text-zinc-100 mb-2 font-medium" {...props} />
+    ));
+    LI.displayName = 'MarkdownLI';
+
+    const Strong = React.forwardRef<HTMLElement, any>(({ node, ...props }, ref) => (
+      <strong ref={ref} className="font-black text-zinc-950 dark:text-white" {...props} />
+    ));
+    Strong.displayName = 'MarkdownStrong';
+
+    const Code = React.forwardRef<HTMLElement, any>(({ node, className, children, ...props }, ref) => (
+      <code
+        ref={ref}
+        className={`${className || ''} bg-zinc-200 dark:bg-zinc-800 text-zinc-950 dark:text-zinc-200 rounded px-1.5 py-0.5 text-[0.85rem] font-mono font-bold`}
+        {...props}
+      >
+        {children}
+      </code>
+    ));
+    Code.displayName = 'MarkdownCode';
+
+    const Pre = React.forwardRef<HTMLPreElement, any>(({ node, ...props }, ref) => (
+      <pre
+        ref={ref}
+        className="bg-zinc-100 dark:bg-zinc-950/50 border border-zinc-200 dark:border-white/5 rounded-xl p-5 my-6 overflow-x-auto scrollbar-thin shadow-inner"
+        {...props}
+      />
+    ));
+    Pre.displayName = 'MarkdownPre';
+
+    const Table = React.forwardRef<HTMLTableElement, any>(({ node, className, ...props }, ref) => (
+      <table
+        ref={ref}
+        className={`block w-full overflow-x-auto my-8 rounded-xl border border-zinc-300 dark:border-white/10 bg-white dark:bg-white/5 shadow-md divide-y divide-zinc-200 dark:divide-white/10 ${className || ''}`}
+        {...props}
+      />
+    ));
+    Table.displayName = 'MarkdownTable';
+
+    const THead = React.forwardRef<HTMLTableSectionElement, any>(({ node, ...props }, ref) => (
+      <thead ref={ref} className="bg-zinc-100 dark:bg-white/5" {...props} />
+    ));
+    THead.displayName = 'MarkdownTHead';
+
+    const TH = React.forwardRef<HTMLTableCellElement, any>(({ node, ...props }, ref) => (
+      <th
+        ref={ref}
+        className="px-4 py-3.5 text-left text-xs font-black text-zinc-700 dark:text-zinc-300 uppercase tracking-widest"
+        {...props}
+      />
+    ));
+    TH.displayName = 'MarkdownTH';
+
+    const TD = React.forwardRef<HTMLTableCellElement, any>(({ node, ...props }, ref) => (
+      <td
+        ref={ref}
+        className="px-4 py-3.5 text-sm text-zinc-950 dark:text-zinc-200 border-t border-zinc-200 dark:border-white/5 font-semibold"
+        {...props}
+      />
+    ));
+    TD.displayName = 'MarkdownTD';
+
+    const TR = React.forwardRef<HTMLTableRowElement, any>(({ node, ...props }, ref) => (
+      <tr ref={ref} className="hover:bg-zinc-50 dark:hover:bg-white/[0.02] transition-colors" {...props} />
+    ));
+    TR.displayName = 'MarkdownTR';
+
+    return {
+      h1: H1,
+      h2: H2,
+      h3: H3,
+      p: P,
+      li: LI,
+      strong: Strong,
+      code: Code,
+      pre: Pre,
+      table: Table,
+      thead: THead,
+      th: TH,
+      td: TD,
+      tr: TR,
+    };
+  }, []);
+
   return (
     <div className={`flex gap-4 animate-fade-in group ${isUser ? 'flex-row-reverse' : ''}`}>
-      <div className={`flex-shrink-0 w-10 h-10 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-105 ${isUser
-        ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-lg'
-        : isSynthesized
-          ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg shadow-amber-500/20'
-          : 'glass border border-white/10 shadow-lg'
-        }`}>
+      <div
+        className={`flex-shrink-0 w-10 h-10 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-105 ${isUser
+          ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-lg'
+          : isSynthesized
+            ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg shadow-amber-500/20'
+            : 'glass border border-white/10 shadow-lg'
+          }`}
+      >
         {isUser ? (
           <User className="w-5 h-5" />
         ) : isSynthesized ? (
@@ -101,12 +225,14 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
           </div>
         )}
 
-        <div className={`w-full text-left rounded-3xl px-5 py-4 transition-all duration-300 ${isUser
-          ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-tr-sm shadow-md ml-auto sm:max-w-[80%]'
-          : isSynthesized
-            ? 'bg-amber-50/50 dark:bg-amber-950/10 border border-amber-200 dark:border-amber-500/20 rounded-tl-sm backdrop-blur-xl shadow-xl relative overflow-hidden'
-            : `bg-white/80 dark:bg-zinc-900/40 border ${getProviderStyles(model?.provider)} rounded-tl-sm shadow-sm backdrop-blur-md`
-          }`}>
+        <div
+          className={`w-full text-left rounded-3xl px-5 py-4 transition-all duration-300 ${isUser
+            ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-tr-sm shadow-md ml-auto sm:max-w-[80%]'
+            : isSynthesized
+              ? 'bg-amber-50/50 dark:bg-amber-950/10 border border-amber-200 dark:border-amber-500/20 rounded-tl-sm backdrop-blur-xl shadow-xl relative overflow-hidden'
+              : `bg-white/80 dark:bg-zinc-900/40 border ${getProviderStyles(model?.provider)} rounded-tl-sm shadow-sm backdrop-blur-md`
+            }`}
+        >
           {isSynthesized && (
             <div className="absolute top-0 right-0 p-4 opacity-[0.03] dark:opacity-[0.05] pointer-events-none">
               <Quote className="w-24 h-24 rotate-180 text-amber-500" />
@@ -129,39 +255,9 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
             </div>
           ) : (
             <div className="prose prose-sm dark:prose-invert max-w-none leading-relaxed prose-p:leading-relaxed prose-headings:mb-3 prose-headings:mt-4 prose-p:mb-3 prose-table:my-4">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  h1: ({ node, ...props }) => <h1 className="text-xl font-extrabold text-zinc-950 dark:text-white border-b border-zinc-200 dark:border-zinc-800 pb-3 mb-5" {...props} />,
-                  h2: ({ node, ...props }) => <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mt-8 mb-4 flex items-center gap-2" {...props} />,
-                  h3: ({ node, ...props }) => <h3 className="text-base font-bold text-zinc-800 dark:text-zinc-200 mt-6 mb-3" {...props} />,
-                  p: ({ node, ...props }) => <p className="text-zinc-900 dark:text-zinc-100 leading-relaxed mb-4 font-medium" {...props} />,
-                  li: ({ node, ...props }) => <li className="text-zinc-900 dark:text-zinc-100 mb-2 font-medium" {...props} />,
-                  strong: ({ node, ...props }) => <strong className="font-black text-zinc-950 dark:text-white" {...props} />,
-                  code: ({ node, className, children, ...props }) => {
-                    const match = /language-(\w+)/.exec(className || '');
-                    return (
-                      <code className={`${className} bg-zinc-200 dark:bg-zinc-800 text-zinc-950 dark:text-zinc-200 rounded px-1.5 py-0.5 text-[0.85rem] font-mono font-bold`} {...props}>
-                        {children}
-                      </code>
-                    );
-                  },
-                  pre: ({ node, ...props }) => (
-                    <pre className="bg-zinc-100 dark:bg-zinc-950/50 border border-zinc-200 dark:border-white/5 rounded-xl p-5 my-6 overflow-x-auto scrollbar-thin shadow-inner" {...props} />
-                  ),
-                  table: ({ node, ...props }) => (
-                    <div className="overflow-x-auto my-8 rounded-xl border border-zinc-300 dark:border-white/10 bg-white dark:bg-white/5 shadow-md">
-                      <table className="min-w-full divide-y divide-zinc-200 dark:divide-white/10" {...props} />
-                    </div>
-                  ),
-                  thead: ({ node, ...props }) => <thead className="bg-zinc-100 dark:bg-white/5" {...props} />,
-                  th: ({ node, ...props }) => <th className="px-4 py-3.5 text-left text-xs font-black text-zinc-700 dark:text-zinc-300 uppercase tracking-widest" {...props} />,
-                  td: ({ node, ...props }) => <td className="px-4 py-3.5 text-sm text-zinc-950 dark:text-zinc-200 border-t border-zinc-200 dark:border-white/5 font-semibold" {...props} />,
-                  tr: ({ node, ...props }) => <tr className="hover:bg-zinc-50 dark:hover:bg-white/[0.02] transition-colors" {...props} />
-                }}
-              >
+              <Markdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                 {processedContent}
-              </ReactMarkdown>
+              </Markdown>
             </div>
           )}
         </div>
@@ -173,3 +269,4 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
     </div>
   );
 };
+
