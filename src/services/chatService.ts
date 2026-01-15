@@ -37,7 +37,8 @@ export const sendMessage = async (
 
 export const sendSynthesisRequest = async (
   userMessage: string,
-  conversationHistory: { role: 'user' | 'assistant' | 'system'; content: string }[]
+  conversationHistory: { role: 'user' | 'assistant' | 'system'; content: string }[],
+  synthesisModelIds: string[] = SYNTHESIS_MODELS
 ): Promise<{
   responses: { modelId: string; content: string }[];
   synthesis: string;
@@ -48,7 +49,7 @@ export const sendSynthesisRequest = async (
   ];
 
   // Query all synthesis models in parallel
-  const modelPromises = SYNTHESIS_MODELS.map(async (modelId) => {
+  const modelPromises = synthesisModelIds.map(async (modelId) => {
     try {
       const response = await sendMessage(messages, modelId);
       return { modelId, content: response.content, error: null };

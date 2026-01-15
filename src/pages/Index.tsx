@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Message } from '@/types/chat';
 import { MODELS, SYNTHESIS_MODELS, getModelById } from '@/constants/models';
 import { ModelSelector } from '@/components/chat/ModelSelector';
+import { SystemControl } from '@/components/chat/SystemControl';
 import { ChatMessage } from '@/components/chat/ChatMessage';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { sendMessage, sendSynthesisRequest } from '@/services/chatService';
@@ -12,6 +13,8 @@ const Index = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [selectedModel, setSelectedModel] = useState('gpt-4o');
   const [synthesisMode, setSynthesisMode] = useState(false);
+  const [synthesisModelIds, setSynthesisModelIds] = useState<string[]>(SYNTHESIS_MODELS);
+  const [isSystemControlOpen, setIsSystemControlOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -40,8 +43,8 @@ const Index = () => {
 
       if (synthesisMode) {
         // Synthesis mode: query multiple models and synthesize
-        const result = await sendSynthesisRequest(content, conversationHistory);
-        
+        const result = await sendSynthesisRequest(content, conversationHistory, synthesisModelIds);
+
         // Add individual model responses (collapsed view)
         for (const response of result.responses) {
           const model = getModelById(response.modelId);
@@ -106,13 +109,23 @@ const Index = () => {
             <p className="text-xs text-muted-foreground">여러 AI 모델을 한 곳에서</p>
           </div>
         </div>
-        <ModelSelector
-          selectedModel={selectedModel}
-          onSelectModel={setSelectedModel}
-          synthesisMode={synthesisMode}
-          onToggleSynthesis={() => setSynthesisMode(!synthesisMode)}
-        />
+        <div className="flex items-center gap-2">
+          <ModelSelector
+            selectedModel={selectedModel}
+            onSelectModel={setSelectedModel}
+            synthesisMode={synthesisMode}
+            onToggleSynthesis={() => setSynthesisMode(!synthesisMode)}
+            onConfigureSynthesis={() => setIsSystemControlOpen(true)}
+          />
+        </div>
       </header>
+
+      <SystemControl
+        open={isSystemControlOpen}
+        onOpenChange={setIsSystemControlOpen}
+        selectedModelIds={synthesisModelIds}
+        onApply={setSynthesisModelIds}
+      />
 
       {/* Messages */}
       <main className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-thin">

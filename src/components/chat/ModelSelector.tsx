@@ -1,6 +1,6 @@
 import { MODELS } from '@/constants/models';
 import { AIModel } from '@/types/chat';
-import { Check, ChevronDown, Sparkles } from 'lucide-react';
+import { Check, ChevronDown, Sparkles, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -15,6 +15,7 @@ interface ModelSelectorProps {
   onSelectModel: (modelId: string) => void;
   synthesisMode: boolean;
   onToggleSynthesis: () => void;
+  onConfigureSynthesis?: () => void;
 }
 
 const getProviderColor = (provider: string) => {
@@ -32,6 +33,7 @@ export const ModelSelector = ({
   onSelectModel,
   synthesisMode,
   onToggleSynthesis,
+  onConfigureSynthesis,
 }: ModelSelectorProps) => {
   const currentModel = MODELS.find(m => m.id === selectedModel) || MODELS[0];
 
@@ -63,15 +65,28 @@ export const ModelSelector = ({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <Button
-        variant={synthesisMode ? 'default' : 'outline'}
-        size="sm"
-        onClick={onToggleSynthesis}
-        className={`gap-2 ${synthesisMode ? 'gradient-primary text-primary-foreground' : 'glass'}`}
-      >
-        <Sparkles className="w-4 h-4" />
-        <span className="hidden sm:inline">Synthesis</span>
-      </Button>
+      <div className="flex items-center gap-2">
+        <Button
+          variant={synthesisMode ? 'default' : 'outline'}
+          size="sm"
+          onClick={onToggleSynthesis}
+          className={`gap-2 ${synthesisMode ? 'gradient-primary text-primary-foreground' : 'glass'}`}
+        >
+          <Sparkles className="w-4 h-4" />
+          <span className="hidden sm:inline">Synthesis</span>
+        </Button>
+        {synthesisMode && onConfigureSynthesis && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onConfigureSynthesis}
+            className="h-9 w-9 glass hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            title="Configure Synthesis Models"
+          >
+            <Settings className="w-4 h-4" />
+          </Button>
+        )}
+      </div>
     </div>
   );
 };

@@ -1,4 +1,4 @@
-export type AIProvider = 'openai' | 'anthropic' | 'google' | 'deepseek' | 'openrouter';
+export type AIProvider = 'openai' | 'anthropic' | 'google' | 'deepseek' | 'mistral' | 'nvidia' | 'meta' | 'openrouter';
 
 export interface AIModel {
   id: string;
@@ -7,6 +7,7 @@ export interface AIModel {
   description: string;
   inputPrice: number; // per 1M tokens
   outputPrice: number; // per 1M tokens
+  contextWindow: number; // token limit
   color: string;
 }
 
