@@ -209,12 +209,8 @@ const Index = () => {
       <main className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-thin">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center px-4">
-            <div className="mb-6 animate-pulse-slow">
-              <img
-                src="logo.png"
-                alt="AI_ALL Welcome Logo"
-                className="w-32 h-auto object-contain drop-shadow-2xl"
-              />
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mb-8 shadow-xl shadow-indigo-500/20">
+              <Sparkles className="w-8 h-8 text-white fill-current animate-pulse-slow" />
             </div>
             <h2 className="text-2xl font-semibold mb-2">AI_ALL에 오신 것을 환영합니다</h2>
             <p className="text-muted-foreground max-w-md mb-8">
