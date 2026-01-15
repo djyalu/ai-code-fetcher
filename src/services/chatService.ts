@@ -40,8 +40,16 @@ export const sendMessage = async (
   });
 
   if (error) {
+    // supabase-js exposes function errors via `error` with a message like:
+    // "Edge function returned 429: Error, { ... }"
+    const message = error.message || 'Failed to get response';
+
+    if (message.includes('returned 429') || message.includes('Rate limit exceeded')) {
+      throw new Error('현재 선택한 모델이 요청 한도에 도달했습니다. 잠시 후 다시 시도하거나 다른 모델로 변경해 주세요.');
+    }
+
     console.error('Chat API error:', error);
-    throw new Error(error.message || 'Failed to get response');
+    throw new Error(message);
   }
 
   return data as ChatResponse;

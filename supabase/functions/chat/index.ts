@@ -216,14 +216,20 @@ Deno.serve(async (req) => {
         const errorText = await response.text();
         console.warn(`Rate limited (attempt ${attempt + 1}/${maxRetries}): ${errorText}`);
 
-        // Wait before retry with exponential backoff
-        if (attempt < maxRetries - 1) {
+        // If it's a hard daily cap, don't retry (retries just burn time/requests)
+        const isDailyLimit = errorText.includes('Daily limit reached') || errorText.includes('limit_rpd');
+
+        if (!isDailyLimit && attempt < maxRetries - 1) {
+          // Wait before retry with exponential backoff
           await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
           continue;
         }
 
+        const resetHeader = response.headers.get('X-RateLimit-Reset');
         lastError = new HttpError(
-          'Rate limit exceeded. Please try again in a few seconds.',
+          resetHeader
+            ? `Rate limit exceeded. Try again after reset (${resetHeader}).`
+            : 'Rate limit exceeded. Please try again in a few seconds.',
           429
         );
         break;
