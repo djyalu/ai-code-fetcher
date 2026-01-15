@@ -16,14 +16,16 @@ interface ModelCheckResult {
 
 // Models to check - OpenRouter models
 const OPENROUTER_MODELS = [
+  // Free models
   'google/gemini-2.0-flash-exp:free',
-  'nvidia/nemotron-3-nano-30b-a3b:free',
-  'qwen/qwen3-coder-480b-a35b:free',
-  'mistralai/devstral-2-2512:free',
-  'tngtech/r1t-chimera:free',
-  'allenai/molmo2-8b:free',
-  'meta-llama/llama-3.1-70b-instruct:free',
-  'allenai/olmo-3.1-32b-think:free',
+  'nvidia/llama-3.1-nemotron-70b-instruct:free',
+  'qwen/qwen-2.5-72b-instruct:free',
+  'mistralai/mistral-small-3.1-24b-instruct:free',
+  'deepseek/deepseek-chat-v3-0324:free',
+  'google/gemma-3-27b-it:free',
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'microsoft/phi-4:free',
+  // Premium models
   'gpt-4o',
   'gpt-4o-mini',
   'claude-3-5-sonnet',
