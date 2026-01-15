@@ -174,7 +174,7 @@ export const MODELS: AIModel[] = [
   },
 ];
 
-export const SYNTHESIS_MODELS = ['gpt-4o', 'claude-3-5-sonnet', 'gemini-2.0-flash', 'deepseek-chat'];
+export const SYNTHESIS_MODELS = ['google/gemini-2.0-flash-exp:free', 'nvidia/llama-3.1-nemotron-70b-instruct:free', 'meta-llama/llama-3.3-70b-instruct:free'];
 
 export const DEFAULT_SYSTEM_PROMPT = `You are a helpful AI assistant. Respond concisely and accurately.`;
 

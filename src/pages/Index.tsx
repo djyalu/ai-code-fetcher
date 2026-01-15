@@ -18,7 +18,7 @@ const ADMIN_EMAIL = 'go41@naver.com';
 
 const Index = () => {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [selectedModel, setSelectedModel] = useState('sonar'); // Default to Perplexity Sonar
+  const [selectedModel, setSelectedModel] = useState('google/gemini-2.0-flash-exp:free'); // Default to a free model
   const [synthesisMode, setSynthesisMode] = useState(false);
   const [synthesisModelIds, setSynthesisModelIds] = useState<string[]>(SYNTHESIS_MODELS);
   const [isSystemControlOpen, setIsSystemControlOpen] = useState(false);
@@ -30,8 +30,12 @@ const Index = () => {
   const { toast } = useToast();
 
   const isAdmin = session?.user?.email === ADMIN_EMAIL;
-  // If not logged in, user is limited to Free models (inputPrice === 0)
-  // Logic handled in ModelSelector, but we also ensure selectedModel is valid here
+
+  // Helper to check if a model is premium
+  const isPremiumModel = (modelId: string) => {
+    const model = getModelById(modelId);
+    return model ? model.inputPrice > 0 : false;
+  };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -42,6 +46,11 @@ const Index = () => {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      // If user logs out, and current selected model is premium, switch to free
+      if (!session) {
+        setSelectedModel(prev => isPremiumModel(prev) ? 'google/gemini-2.0-flash-exp:free' : prev);
+        setSynthesisModelIds(prev => prev.filter(id => !isPremiumModel(id)));
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -75,12 +84,20 @@ const Index = () => {
       }));
 
       if (synthesisMode) {
+        // Double check permissions: filter out premium models if not logged in
+        const allowedModelIds = session
+          ? synthesisModelIds
+          : synthesisModelIds.filter(id => !isPremiumModel(id));
+
+        if (allowedModelIds.length === 0) {
+          throw new Error('선택된 모델 중 사용 가능한 모델이 없습니다. (로그인이 필요할 수 있습니다)');
+        }
+
         // Synthesis mode: query multiple models and synthesize
-        const result = await sendSynthesisRequest(content, conversationHistory, synthesisModelIds);
+        const result = await sendSynthesisRequest(content, conversationHistory, allowedModelIds);
 
         // Add individual model responses (collapsed view)
         for (const response of result.responses) {
-          const model = getModelById(response.modelId);
           setMessages(prev => [...prev, {
             id: crypto.randomUUID(),
             role: 'assistant',
@@ -98,6 +115,11 @@ const Index = () => {
           timestamp: new Date(),
         }]);
       } else {
+        // Check permission for single model
+        if (!session && isPremiumModel(selectedModel)) {
+          throw new Error('선택하신 모델은 프리미엄 모델입니다. 로그인이 필요합니다.');
+        }
+
         // Single model mode
         const response = await sendMessage(
           [...conversationHistory, { role: 'user', content }],
