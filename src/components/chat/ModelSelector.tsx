@@ -111,7 +111,7 @@ export const ModelSelector = ({
           <Sparkles className="w-4 h-4" />
           <span className="hidden sm:inline">Synthesis</span>
         </Button>
-        {synthesisMode && onConfigureSynthesis && isAdmin && (
+        {synthesisMode && onConfigureSynthesis && (
           <Button
             variant="ghost"
             size="icon"
