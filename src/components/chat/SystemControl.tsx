@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { MODELS } from "@/constants/models";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { X, Check, Users, Settings2 } from "lucide-react";
+import { X, Check, Users, Settings2, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MemberManagement } from "@/components/admin/MemberManagement";
 import { Badge } from "@/components/ui/badge";
+import { useModelHealth } from "@/hooks/useModelHealth";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface SystemControlProps {
     open: boolean;
@@ -12,6 +14,7 @@ interface SystemControlProps {
     selectedModelIds: string[];
     onApply: (modelIds: string[]) => void;
     isAdmin?: boolean;
+    isLoggedIn?: boolean;
 }
 
 export const SystemControl = ({
@@ -20,9 +23,11 @@ export const SystemControl = ({
     selectedModelIds,
     onApply,
     isAdmin = false,
+    isLoggedIn = false,
 }: SystemControlProps) => {
     const [localSelectedIds, setLocalSelectedIds] = useState<string[]>(selectedModelIds);
     const [isMemberManagementOpen, setIsMemberManagementOpen] = useState(false);
+    const { isModelAvailable, lastChecked } = useModelHealth();
 
     useEffect(() => {
         if (open) {
@@ -30,7 +35,10 @@ export const SystemControl = ({
         }
     }, [selectedModelIds, open]);
 
-    const toggleModel = (modelId: string) => {
+    const toggleModel = (modelId: string, isPremium: boolean) => {
+        // Block premium models for non-logged-in users
+        if (isPremium && !isLoggedIn) return;
+        
         setLocalSelectedIds(prev =>
             prev.includes(modelId)
                 ? prev.filter(id => id !== modelId)
@@ -45,6 +53,30 @@ export const SystemControl = ({
 
     const freeModels = MODELS.filter(m => m.inputPrice === 0);
     const premiumModels = MODELS.filter(m => m.inputPrice > 0);
+
+    const getHealthIndicator = (modelId: string) => {
+        const available = isModelAvailable(modelId);
+        if (available === undefined) return null;
+        return (
+            <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <span 
+                            className={`w-2.5 h-2.5 rounded-full shrink-0 ${available ? 'bg-green-500' : 'bg-red-500'}`}
+                        />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>{available ? '사용 가능' : '사용 불가'}</p>
+                        {lastChecked && (
+                            <p className="text-xs text-muted-foreground">
+                                마지막 확인: {lastChecked.toLocaleString('ko-KR')}
+                            </p>
+                        )}
+                    </TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
+        );
+    };
 
     return (
         <>
@@ -98,16 +130,24 @@ export const SystemControl = ({
                                     <span className="text-xs text-zinc-500">
                                         {premiumModels.filter(m => localSelectedIds.includes(m.id)).length} / {premiumModels.length} selected
                                     </span>
+                                    {!isLoggedIn && (
+                                        <span className="text-xs text-yellow-500 flex items-center gap-1">
+                                            <Lock className="w-3 h-3" /> 로그인 필요
+                                        </span>
+                                    )}
                                 </div>
                                 <div className="grid gap-2">
                                     {premiumModels.map((model) => {
                                         const isSelected = localSelectedIds.includes(model.id);
+                                        const isLocked = !isLoggedIn;
                                         return (
                                             <button
                                                 key={model.id}
-                                                onClick={() => toggleModel(model.id)}
+                                                onClick={() => toggleModel(model.id, true)}
+                                                disabled={isLocked}
                                                 className={`
                                                     w-full text-left p-4 rounded-lg border transition-all
+                                                    ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}
                                                     ${isSelected
                                                         ? 'bg-zinc-900 border-zinc-700'
                                                         : 'bg-zinc-950 border-zinc-800 hover:border-zinc-700'
@@ -117,10 +157,12 @@ export const SystemControl = ({
                                                 <div className="flex items-center justify-between">
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-center gap-2 mb-1">
+                                                            {getHealthIndicator(model.id)}
                                                             <h3 className="font-medium text-white">{model.name}</h3>
                                                             <span className="text-xs text-zinc-500">
                                                                 ${model.inputPrice}/1M
                                                             </span>
+                                                            {isLocked && <Lock className="w-3 h-3 text-zinc-500" />}
                                                         </div>
                                                         <p className="text-xs text-zinc-500 truncate">
                                                             {model.description}
@@ -160,7 +202,7 @@ export const SystemControl = ({
                                         return (
                                             <button
                                                 key={model.id}
-                                                onClick={() => toggleModel(model.id)}
+                                                onClick={() => toggleModel(model.id, false)}
                                                 className={`
                                                     w-full text-left p-4 rounded-lg border transition-all
                                                     ${isSelected
@@ -172,6 +214,7 @@ export const SystemControl = ({
                                                 <div className="flex items-center justify-between">
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-center gap-2 mb-1">
+                                                            {getHealthIndicator(model.id)}
                                                             <h3 className="font-medium text-white">{model.name}</h3>
                                                             <span className="text-xs text-zinc-600">
                                                                 {(model.contextWindow / 1000).toFixed(0)}K ctx

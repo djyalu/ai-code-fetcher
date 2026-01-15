@@ -177,6 +177,7 @@ const Index = () => {
         selectedModelIds={synthesisModelIds}
         onApply={setSynthesisModelIds}
         isAdmin={isAdmin}
+        isLoggedIn={!!session}
       />
 
       <AuthDialog open={isAuthDialogOpen} onOpenChange={setIsAuthDialogOpen} />
