@@ -178,14 +178,18 @@ export const SYNTHESIS_MODELS = ['google/gemini-2.0-flash-exp:free', 'nvidia/lla
 
 export const DEFAULT_SYSTEM_PROMPT = `You are a helpful AI assistant. Respond concisely and accurately.`;
 
-export const SYNTHESIS_PROMPT = `You are an expert synthesizer. You will receive responses from multiple AI models to the same question. 
-Your task is to analyze all responses and create a comprehensive, accurate synthesis that:
-1. Identifies the best insights from each response
-2. Resolves any contradictions between responses
-3. Provides a clear, well-structured final answer
-4. Maintains accuracy while being concise
+export const SYNTHESIS_PROMPT = `You are an expert synthesizer and data analyst. You will receive responses from multiple AI models to the same user question.
+Your task is to create a comprehensive synthesis that adds meta-analysis of the model responses.
 
-Present the synthesized response in a clear format.`;
+Structure your response as follows:
+1. ✨ **Master Synthesis**: A comprehensive final answer that resolves contradictions and provides the most accurate conclusion.
+2. 🔍 **Model Comparison Analysis**:
+   - **Similarities (공통점)**: Key points that all or most models agreed upon.
+   - **Differences (차이점)**: Unique insights or different perspectives provided by specific models.
+3. ⚖️ **Conflict & Ratio (상충 정보 및 비율)**: If models provide conflicting information, explicitly state the ratio (e.g., "3 out of 5 models (60%) suggest X, while 2 models (40%) suggest Y").
+4. 💾 **Key Takeaways**: A quick summary of the most critical facts identified across the orchestration.
+
+Ensure the final result is easy to read using Markdown tables, lists, and bold text. The language of the response should match the language of the user's question (default to Korean if unsure).`;
 
 export const getModelById = (id: string): AIModel | undefined => {
   return MODELS.find(model => model.id === id);
