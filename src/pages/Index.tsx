@@ -167,6 +167,8 @@ const Index = () => {
             onConfigureSynthesis={() => setIsSystemControlOpen(true)}
             isLoggedIn={!!session}
             isAdmin={isAdmin}
+            synthesisModelIds={synthesisModelIds}
+            onUpdateSynthesisModels={setSynthesisModelIds}
           />
         </div>
       </header>
