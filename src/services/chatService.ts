@@ -39,12 +39,39 @@ export const sendMessage = async (
   });
 
   if (error) {
-    // supabase-js exposes function errors via `error` with a message like:
-    // "Edge function returned 429: Error, { ... }"
-    const message = error.message || 'Failed to get response';
+    // supabase-js may surface non-2xx responses as a generic FunctionsHttpError.
+    // Try to pull status/body from the error context so we can show actionable messages.
+    const err: any = error;
+    const status: number | undefined = err?.context?.status ?? err?.status;
 
-    if (message.includes('returned 429') || message.includes('Rate limit exceeded')) {
-      throw new Error('현재 선택한 모델이 요청 한도에 도달했습니다. 잠시 후 다시 시도하거나 다른 모델로 변경해 주세요.');
+    let extractedMessage: string | undefined;
+    const body = err?.context?.body;
+
+    if (typeof body === 'string') {
+      try {
+        const parsed = JSON.parse(body);
+        extractedMessage = parsed?.error || parsed?.message;
+      } catch {
+        extractedMessage = body;
+      }
+    } else if (body && typeof body === 'object') {
+      extractedMessage = body?.error || body?.message;
+    }
+
+    const message = extractedMessage || err?.message || 'Failed to get response';
+
+    const isRateLimit = status === 429 || message.includes('Rate limit exceeded') || message.includes('returned 429');
+    if (isRateLimit) {
+      // Try to pull the reset epoch (ms) from "...reset (1768521600000)" and show a friendly hint.
+      const match = message.match(/reset\s*\((\d{10,})\)/i);
+      const resetMs = match ? Number(match[1]) : undefined;
+      const resetText = resetMs ? new Date(resetMs).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : null;
+
+      throw new Error(
+        resetText
+          ? `현재 선택한 모델이 요청 한도에 도달했습니다. ${resetText} 이후 다시 시도하거나 다른 모델로 변경해 주세요.`
+          : '현재 선택한 모델이 요청 한도에 도달했습니다. 잠시 후 다시 시도하거나 다른 모델로 변경해 주세요.'
+      );
     }
 
     console.error('Chat API error:', error);
