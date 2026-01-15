@@ -112,6 +112,19 @@ async function callOpenRouter(
   return response;
 }
 
+// Helper to detect Perplexity models
+function isPerplexityModel(model: string): boolean {
+  return model.startsWith('perplexity/') || model === 'sonar' || model === 'sonar-deep-research';
+}
+
+// Map Perplexity model IDs to API model names
+function getPerplexityModelName(model: string): string {
+  if (model === 'perplexity/sonar' || model === 'sonar') return 'sonar';
+  if (model === 'perplexity/sonar-deep-research' || model === 'sonar-deep-research') return 'sonar-deep-research';
+  // Strip perplexity/ prefix if present
+  return model.replace('perplexity/', '');
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -119,22 +132,67 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const { messages, model, stream = false }: RequestBody = await req.json();
+    console.log(`Chat request - Model: ${model}, Messages: ${messages.length}, Stream: ${stream}`);
+
+    const mappedModel = MODEL_MAP[model] || model;
+    console.log(`Mapped model: ${mappedModel}`);
+
+    // Route Perplexity models directly to Perplexity API
+    if (isPerplexityModel(mappedModel)) {
+      const perplexityKey = Deno.env.get('PERPLEXITY_API_KEY');
+      if (!perplexityKey) {
+        console.error('PERPLEXITY_API_KEY not configured');
+        throw new Error('Perplexity API key not configured');
+      }
+
+      const perplexityModelName = getPerplexityModelName(mappedModel);
+      console.log(`Routing to Perplexity API with model: ${perplexityModelName}`);
+
+      const response = await callPerplexity(perplexityKey, perplexityModelName, messages, stream);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Perplexity API error: ${response.status} - ${errorText}`);
+        throw new Error(`Perplexity API error: ${response.status}`);
+      }
+
+      if (stream) {
+        console.log('Returning Perplexity streaming response');
+        return new Response(response.body, {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+          },
+        });
+      }
+
+      const data = await response.json();
+      console.log('Perplexity chat completion successful');
+
+      return new Response(JSON.stringify({
+        content: data.choices?.[0]?.message?.content || '',
+        model: data.model,
+        usage: data.usage,
+        citations: data.citations || [],
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // For non-Perplexity models, use OpenRouter
     const apiKey = Deno.env.get('OPENROUTER_API_KEY');
     if (!apiKey) {
       console.error('OPENROUTER_API_KEY not configured');
       throw new Error('OpenRouter API key not configured');
     }
 
-    const { messages, model, stream = false }: RequestBody = await req.json();
-    console.log(`Chat request - Model: ${model}, Messages: ${messages.length}, Stream: ${stream}`);
-
-    const openRouterModel = MODEL_MAP[model] || model;
-    console.log(`Mapped to OpenRouter model: ${openRouterModel}`);
-
-    const effectiveMessages = sanitizeMessagesForModel(openRouterModel, messages);
+    const effectiveMessages = sanitizeMessagesForModel(mappedModel, messages);
     if (effectiveMessages !== messages) {
       console.log(
-        `Sanitized messages for model ${openRouterModel}: ${messages.length} -> ${effectiveMessages.length}`
+        `Sanitized messages for model ${mappedModel}: ${messages.length} -> ${effectiveMessages.length}`
       );
     }
 
@@ -152,7 +210,7 @@ Deno.serve(async (req) => {
     let lastError: HttpError | null = null;
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
-      const response = await callOpenRouter(apiKey, openRouterModel, effectiveMessages, stream);
+      const response = await callOpenRouter(apiKey, mappedModel, effectiveMessages, stream);
 
       if (response.status === 429) {
         const errorText = await response.text();
@@ -167,7 +225,7 @@ Deno.serve(async (req) => {
         // Final attempt failed due to rate limit -> fall back to Perplexity if configured
         const perplexityKey = Deno.env.get('PERPLEXITY_API_KEY');
         if (perplexityKey) {
-          console.warn(`Rate limited on OpenRouter. Falling back to Perplexity sonar for model: ${openRouterModel}`);
+          console.warn(`Rate limited on OpenRouter. Falling back to Perplexity sonar for model: ${mappedModel}`);
           const fallback = await callPerplexity(perplexityKey, 'sonar', messages, stream);
 
           if (!fallback.ok) {
@@ -182,7 +240,7 @@ Deno.serve(async (req) => {
             model: data.model,
             usage: data.usage,
             citations: data.citations || [],
-            fallbackFrom: openRouterModel,
+            fallbackFrom: mappedModel,
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
@@ -203,7 +261,7 @@ Deno.serve(async (req) => {
         if (response.status === 404) {
           const perplexityKey = Deno.env.get('PERPLEXITY_API_KEY');
           if (perplexityKey) {
-            console.warn(`OpenRouter model unavailable. Falling back to Perplexity sonar for model: ${openRouterModel}`);
+            console.warn(`OpenRouter model unavailable. Falling back to Perplexity sonar for model: ${mappedModel}`);
             const fallback = await callPerplexity(perplexityKey, 'sonar', messages, stream);
 
             if (!fallback.ok) {
@@ -218,7 +276,7 @@ Deno.serve(async (req) => {
               model: data.model,
               usage: data.usage,
               citations: data.citations || [],
-              fallbackFrom: openRouterModel,
+              fallbackFrom: mappedModel,
             }), {
               headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             });
