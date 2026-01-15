@@ -33,10 +33,31 @@ const MODEL_MAP: Record<string, string> = {
   'allenai/molmo2-8b:free': 'allenai/molmo2-8b:free',
   'meta-llama/llama-3.1-70b-instruct:free': 'meta-llama/llama-3.1-70b-instruct:free',
   'allenai/olmo-3.1-32b-think:free': 'allenai/olmo-3.1-32b-think:free',
-  'arcee-ai/trinity-mini:free': 'arcee-ai/trinity-mini:free',
+  
   'perplexity/sonar': 'perplexity/sonar',
   'perplexity/sonar-deep-research': 'perplexity/sonar-deep-research',
 };
+
+async function callPerplexity(
+  apiKey: string,
+  model: string,
+  messages: ChatMessage[],
+  stream: boolean
+): Promise<Response> {
+  const response = await fetch('https://api.perplexity.ai/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      stream,
+    }),
+  });
+  return response;
+}
 
 async function callOpenRouter(
   apiKey: string,
@@ -116,6 +137,32 @@ Deno.serve(async (req) => {
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`OpenRouter API error: ${response.status} - ${errorText}`);
+
+        // If the selected OpenRouter model is unavailable (404), fall back to Perplexity Sonar
+        if (response.status === 404) {
+          const perplexityKey = Deno.env.get('PERPLEXITY_API_KEY');
+          if (perplexityKey) {
+            console.warn(`OpenRouter model unavailable. Falling back to Perplexity sonar for model: ${openRouterModel}`);
+            const fallback = await callPerplexity(perplexityKey, 'sonar', messages, stream);
+
+            if (!fallback.ok) {
+              const fallbackError = await fallback.text();
+              console.error(`Perplexity fallback error: ${fallback.status} - ${fallbackError}`);
+              throw new HttpError(`Perplexity API error: ${fallback.status}`, fallback.status);
+            }
+
+            const data = await fallback.json();
+            return new Response(JSON.stringify({
+              content: data.choices?.[0]?.message?.content || '',
+              model: data.model,
+              usage: data.usage,
+              citations: data.citations || [],
+              fallbackFrom: openRouterModel,
+            }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+        }
 
         // Retry transient errors, but preserve the upstream status code
         lastError = new HttpError(`OpenRouter API error: ${response.status}`, response.status);
