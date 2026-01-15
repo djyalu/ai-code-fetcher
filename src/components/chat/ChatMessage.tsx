@@ -1,7 +1,10 @@
 import { Message } from '@/types/chat';
 import { getModelById } from '@/constants/models';
-import { User, Bot, Loader2, Sparkles, Quote } from 'lucide-react';
+import { User, Bot, Loader2, Sparkles, Quote, Copy, Check, Table as TableIcon } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
 interface ChatMessageProps {
   message: Message;
@@ -19,6 +22,8 @@ const getProviderStyles = (provider?: string) => {
 };
 
 export const ChatMessage = ({ message }: ChatMessageProps) => {
+  const [copied, setCopied] = useState(false);
+  const { toast } = useToast();
   const isUser = message.role === 'user';
   const model = message.modelId ? getModelById(message.modelId) : null;
   const isSynthesized = message.content.includes('Synthesized Answer');
@@ -29,6 +34,16 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
   };
 
   const processedContent = cleanContent(message.content);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(processedContent);
+    setCopied(true);
+    toast({
+      description: "답변이 클립보드에 복사되었습니다.",
+      duration: 2000,
+    });
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div className={`flex gap-4 animate-fade-in group ${isUser ? 'flex-row-reverse' : ''}`}>
@@ -49,20 +64,40 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
 
       <div className={`flex-1 max-w-[85%] ${isUser ? 'text-right' : ''}`}>
         {!isUser && (
-          <div className={`text-[10px] font-bold tracking-widest uppercase mb-1.5 flex items-center gap-1.5 ${isUser ? 'justify-end' : ''}`}>
-            {model ? (
-              <>
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: model.color }} />
-                <span className="text-zinc-400">{model.name}</span>
-              </>
-            ) : isSynthesized ? (
-              <>
-                <Sparkles className="w-3 h-3 text-amber-500" />
-                <span className="text-amber-500/80">Multi-Model Synthesis</span>
-              </>
-            ) : (
-              <span className="text-zinc-500 text-[9px]">AI Assistant</span>
-            )}
+          <div className={`text-[10px] font-bold tracking-widest uppercase mb-1.5 flex items-center justify-between group/header`}>
+            <div className="flex items-center gap-1.5">
+              {model ? (
+                <>
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: model.color }} />
+                  <span className="text-zinc-400">{model.name}</span>
+                </>
+              ) : isSynthesized ? (
+                <>
+                  <Sparkles className="w-3 h-3 text-amber-500" />
+                  <span className="text-amber-500/80">Multi-Model Synthesis</span>
+                </>
+              ) : (
+                <span className="text-zinc-500 text-[9px]">AI Assistant</span>
+              )}
+            </div>
+
+            <button
+              onClick={handleCopy}
+              className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-white/5 rounded-md flex items-center gap-1.5 text-zinc-500 hover:text-zinc-300 ring-1 ring-transparent hover:ring-white/10"
+              title="결과 복사"
+            >
+              {copied ? (
+                <>
+                  <Check className="w-3 h-3 text-emerald-500" />
+                  <span className="text-[9px] text-emerald-500">복사됨</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3 h-3" />
+                  <span className="text-[9px]">복사하기</span>
+                </>
+              )}
+            </button>
           </div>
         )}
 
@@ -84,8 +119,9 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
               <span className="text-sm font-medium text-zinc-500 animate-pulse">상각 중...</span>
             </div>
           ) : (
-            <div className="prose prose-sm dark:prose-invert max-w-none leading-relaxed prose-p:leading-relaxed prose-headings:mb-3 prose-headings:mt-4 prose-p:mb-3">
+            <div className="prose prose-sm dark:prose-invert max-w-none leading-relaxed prose-p:leading-relaxed prose-headings:mb-3 prose-headings:mt-4 prose-p:mb-3 prose-table:my-4">
               <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
                 components={{
                   h1: ({ node, ...props }) => <h1 className="text-lg font-bold text-zinc-100 border-b border-white/5 pb-2" {...props} />,
                   h2: ({ node, ...props }) => <h2 className="text-md font-bold text-zinc-200 mt-4" {...props} />,
@@ -99,8 +135,17 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
                     );
                   },
                   pre: ({ node, ...props }) => (
-                    <pre className="bg-zinc-950/50 border border-white/5 rounded-xl p-4 my-4 overflow-x-auto" {...props} />
-                  )
+                    <pre className="bg-zinc-950/50 border border-white/5 rounded-xl p-4 my-4 overflow-x-auto scrollbar-thin" {...props} />
+                  ),
+                  table: ({ node, ...props }) => (
+                    <div className="overflow-x-auto my-6 rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm">
+                      <table className="min-w-full divide-y divide-white/10" {...props} />
+                    </div>
+                  ),
+                  thead: ({ node, ...props }) => <thead className="bg-white/5" {...props} />,
+                  th: ({ node, ...props }) => <th className="px-4 py-3 text-left text-[11px] font-bold text-zinc-400 uppercase tracking-wider" {...props} />,
+                  td: ({ node, ...props }) => <td className="px-4 py-3 text-sm text-zinc-300 border-t border-white/5" {...props} />,
+                  tr: ({ node, ...props }) => <tr className="hover:bg-white/[0.02] transition-colors" {...props} />
                 }}
               >
                 {processedContent}
