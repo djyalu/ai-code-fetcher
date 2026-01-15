@@ -101,11 +101,11 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
           </div>
         )}
 
-        <div className={`inline-block text-left rounded-3xl px-5 py-4 transition-all duration-300 ${isUser
-            ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-tr-sm shadow-md'
-            : isSynthesized
-              ? 'bg-amber-50/50 dark:bg-amber-950/10 border border-amber-200 dark:border-amber-500/20 rounded-tl-sm backdrop-blur-xl shadow-xl relative overflow-hidden'
-              : `bg-white/80 dark:bg-zinc-900/40 border ${getProviderStyles(model?.provider)} rounded-tl-sm shadow-sm backdrop-blur-md`
+        <div className={`w-full text-left rounded-3xl px-5 py-4 transition-all duration-300 ${isUser
+          ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-tr-sm shadow-md ml-auto sm:max-w-[80%]'
+          : isSynthesized
+            ? 'bg-amber-50/50 dark:bg-amber-950/10 border border-amber-200 dark:border-amber-500/20 rounded-tl-sm backdrop-blur-xl shadow-xl relative overflow-hidden'
+            : `bg-white/80 dark:bg-zinc-900/40 border ${getProviderStyles(model?.provider)} rounded-tl-sm shadow-sm backdrop-blur-md`
           }`}>
           {isSynthesized && (
             <div className="absolute top-0 right-0 p-4 opacity-[0.03] dark:opacity-[0.05] pointer-events-none">
