@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { MODELS } from "@/constants/models";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { X, Check, Users, Settings2, Lock } from "lucide-react";
+import { X, Check, Users, Settings2, Lock, History, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MemberManagement } from "@/components/admin/MemberManagement";
+import { PromptHistory } from "@/components/admin/PromptHistory";
 import { Badge } from "@/components/ui/badge";
 import { useModelHealth } from "@/hooks/useModelHealth";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -27,6 +28,7 @@ export const SystemControl = ({
 }: SystemControlProps) => {
     const [localSelectedIds, setLocalSelectedIds] = useState<string[]>(selectedModelIds);
     const [isMemberManagementOpen, setIsMemberManagementOpen] = useState(false);
+    const [isPromptHistoryOpen, setIsPromptHistoryOpen] = useState(false);
     const { isModelAvailable, lastChecked } = useModelHealth();
 
     useEffect(() => {
@@ -38,7 +40,7 @@ export const SystemControl = ({
     const toggleModel = (modelId: string, isPremium: boolean) => {
         // Block premium models for non-logged-in users
         if (isPremium && !isLoggedIn) return;
-        
+
         setLocalSelectedIds(prev =>
             prev.includes(modelId)
                 ? prev.filter(id => id !== modelId)
@@ -61,7 +63,7 @@ export const SystemControl = ({
             <TooltipProvider>
                 <Tooltip>
                     <TooltipTrigger asChild>
-                        <span 
+                        <span
                             className={`w-2.5 h-2.5 rounded-full shrink-0 ${available ? 'bg-green-500' : 'bg-red-500'}`}
                         />
                     </TooltipTrigger>
@@ -97,15 +99,26 @@ export const SystemControl = ({
                         </div>
                         <div className="flex items-center gap-2">
                             {isAdmin && (
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setIsMemberManagementOpen(true)}
-                                    className="gap-2 text-zinc-400 hover:text-white"
-                                >
-                                    <Users className="w-4 h-4" />
-                                    Members
-                                </Button>
+                                <div className="flex items-center gap-1 mr-2">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setIsPromptHistoryOpen(true)}
+                                        className="gap-2 text-zinc-400 hover:text-white"
+                                    >
+                                        <History className="w-4 h-4" />
+                                        History
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setIsMemberManagementOpen(true)}
+                                        className="gap-2 text-zinc-400 hover:text-white"
+                                    >
+                                        <Users className="w-4 h-4" />
+                                        Members
+                                    </Button>
+                                </div>
                             )}
                             <Button
                                 variant="ghost"
@@ -260,6 +273,10 @@ export const SystemControl = ({
             <MemberManagement
                 open={isMemberManagementOpen}
                 onOpenChange={setIsMemberManagementOpen}
+            />
+            <PromptHistory
+                open={isPromptHistoryOpen}
+                onOpenChange={setIsPromptHistoryOpen}
             />
         </>
     );

@@ -127,6 +127,14 @@ const Index = () => {
           content: `**✨ Synthesized Answer**\n\n${result.synthesis}`,
           timestamp: new Date(),
         }]);
+
+        // Save to DB
+        await (supabase.from('prompt_logs' as any) as any).insert({
+          prompt: content,
+          result: result.synthesis,
+          model_id: 'synthesis',
+          owner_email: session?.user?.email || 'anonymous',
+        });
       } else {
         // Check permission for single model
         if (!session && isPremiumModel(selectedModel)) {
@@ -147,6 +155,14 @@ const Index = () => {
           timestamp: new Date(),
         };
         setMessages(prev => [...prev, aiMessage]);
+
+        // Save to DB
+        await (supabase.from('prompt_logs' as any) as any).insert({
+          prompt: content,
+          result: response.content,
+          model_id: selectedModel,
+          owner_email: session?.user?.email || 'anonymous',
+        });
       }
     } catch (error) {
       console.error('Error sending message:', error);
