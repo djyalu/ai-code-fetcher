@@ -14,7 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      model_health: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          is_available: boolean
+          last_checked_at: string
+          model_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          is_available?: boolean
+          last_checked_at?: string
+          model_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          is_available?: boolean
+          last_checked_at?: string
+          model_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
