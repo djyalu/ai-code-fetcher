@@ -103,10 +103,10 @@ export const MODELS: AIModel[] = [
     color: '#34a853',
   },
   {
-    id: 'nvidia/llama-3.1-nemotron-70b-instruct:free',
-    name: 'Nemotron 70B',
+    id: 'nvidia/nemotron-3-nano-30b-a3b:free',
+    name: 'Nemotron Nano 30B',
     provider: 'nvidia',
-    description: '정밀 추출. 팩트 중심의 정보 추출과 빠른 응답 속도가 강점입니다.',
+    description: '정밀 추출. 가볍고 빠른 응답 속도로 정보를 정확하게 추출합니다.',
     inputPrice: 0,
     outputPrice: 0,
     contextWindow: 131072,
@@ -174,7 +174,7 @@ export const MODELS: AIModel[] = [
   },
 ];
 
-export const SYNTHESIS_MODELS = ['google/gemini-2.0-flash-exp:free', 'nvidia/llama-3.1-nemotron-70b-instruct:free', 'meta-llama/llama-3.3-70b-instruct:free'];
+export const SYNTHESIS_MODELS = ['google/gemini-2.0-flash-exp:free', 'qwen/qwen-2.5-72b-instruct:free', 'meta-llama/llama-3.3-70b-instruct:free'];
 
 export const DEFAULT_SYSTEM_PROMPT = `You are a helpful AI assistant. Respond concisely and accurately.`;
 
