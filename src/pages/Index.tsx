@@ -18,7 +18,7 @@ const ADMIN_EMAIL = 'go41@naver.com';
 
 const Index = () => {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [selectedModel, setSelectedModel] = useState('google/gemini-2.0-flash-exp:free'); // Default to a free model
+  const [selectedModel, setSelectedModel] = useState('sonar'); // Default to Perplexity Sonar
   const [synthesisMode, setSynthesisMode] = useState(false);
   const [synthesisModelIds, setSynthesisModelIds] = useState<string[]>(SYNTHESIS_MODELS);
   const [isSystemControlOpen, setIsSystemControlOpen] = useState(false);
