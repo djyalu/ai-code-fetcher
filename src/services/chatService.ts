@@ -1,5 +1,4 @@
 import { supabase } from '@/integrations/supabase/client';
-import { Message } from '@/types/chat';
 import { DEFAULT_SYSTEM_PROMPT, SYNTHESIS_PROMPT, SYNTHESIS_MODELS, getModelById } from '@/constants/models';
 
 // Synthesis 합성 모델 상수
