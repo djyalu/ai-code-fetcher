@@ -36,6 +36,29 @@ const MODEL_MAP: Record<string, string> = {
   'arcee-ai/trinity-mini:free': 'arcee-ai/trinity-mini:free',
 };
 
+async function callOpenRouter(
+  apiKey: string,
+  model: string,
+  messages: ChatMessage[],
+  stream: boolean
+): Promise<Response> {
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': 'https://lovable.dev',
+      'X-Title': 'Multi AI Chat',
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      stream,
+    }),
+  });
+  return response;
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -55,49 +78,63 @@ Deno.serve(async (req) => {
     const openRouterModel = MODEL_MAP[model] || model;
     console.log(`Mapped to OpenRouter model: ${openRouterModel}`);
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://lovable.dev',
-        'X-Title': 'Multi AI Chat',
-      },
-      body: JSON.stringify({
-        model: openRouterModel,
-        messages,
-        stream,
-      }),
-    });
+    // Retry logic with exponential backoff
+    const maxRetries = 3;
+    let lastError: Error | null = null;
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`OpenRouter API error: ${response.status} - ${errorText}`);
-      throw new Error(`OpenRouter API error: ${response.status}`);
-    }
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      const response = await callOpenRouter(apiKey, openRouterModel, messages, stream);
 
-    if (stream) {
-      console.log('Returning streaming response');
-      return new Response(response.body, {
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive',
-        },
+      if (response.status === 429) {
+        const errorText = await response.text();
+        console.warn(`Rate limited (attempt ${attempt + 1}/${maxRetries}): ${errorText}`);
+
+        // Wait before retry with exponential backoff
+        if (attempt < maxRetries - 1) {
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+          continue;
+        }
+        lastError = new Error('Rate limit exceeded. Please try again in a few seconds.');
+        break;
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`OpenRouter API error: ${response.status} - ${errorText}`);
+        lastError = new Error(`OpenRouter API error: ${response.status}`);
+        if (attempt < maxRetries - 1) {
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+          continue;
+        }
+        break;
+      }
+
+      // Success
+      if (stream) {
+        console.log('Returning streaming response');
+        return new Response(response.body, {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+          },
+        });
+      }
+
+      const data = await response.json();
+      console.log('Chat completion successful');
+
+      return new Response(JSON.stringify({
+        content: data.choices?.[0]?.message?.content || '',
+        model: data.model,
+        usage: data.usage,
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const data = await response.json();
-    console.log('Chat completion successful');
-
-    return new Response(JSON.stringify({
-      content: data.choices?.[0]?.message?.content || '',
-      model: data.model,
-      usage: data.usage,
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    throw lastError || new Error('Failed after retries');
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Internal server error';
     console.error('Error in chat function:', errorMessage);
