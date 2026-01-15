@@ -172,16 +172,6 @@ export const MODELS: AIModel[] = [
     contextWindow: 67584,
     color: '#24292f',
   },
-  {
-    id: 'arcee-ai/trinity-mini:free',
-    name: 'Trinity Mini',
-    provider: 'openrouter',
-    description: '경량/고속. 간단한 검색 쿼리 분류나 키워드 추출 작업을 매우 빠르게 처리합니다.',
-    inputPrice: 0,
-    outputPrice: 0,
-    contextWindow: 131072,
-    color: '#4A154B',
-  },
 ];
 
 export const SYNTHESIS_MODELS = ['gpt-4o', 'claude-3-5-sonnet', 'gemini-2.0-flash', 'deepseek-chat'];
