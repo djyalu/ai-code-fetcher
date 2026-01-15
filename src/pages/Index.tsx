@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Session } from '@supabase/supabase-js';
 import { AuthDialog } from '@/components/auth/AuthDialog';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
 const ADMIN_EMAIL = 'go41@naver.com';
 
@@ -131,22 +132,26 @@ const Index = () => {
   return (
     <div className="flex flex-col h-screen bg-background">
       {/* Header */}
-      <header className="glass-strong border-b px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center">
-            <Zap className="w-6 h-6 text-primary-foreground" />
+      <header className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 glass-strong sticky top-0 z-10">
+        <div className="flex items-center gap-3 group cursor-pointer">
+          <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center shadow-lg shadow-indigo-500/20 group-hover:scale-110 transition-transform duration-300">
+            <Zap className="w-6 h-6 text-white fill-current" />
           </div>
-          <div>
-            <h1 className="font-semibold text-lg">Multi AI</h1>
-            <p className="text-xs text-muted-foreground">여러 AI 모델을 한 곳에서</p>
-          </div>
+          <h1 className="text-xl font-bold tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-500">
+            AI_ALL
+          </h1>
         </div>
+
         <div className="flex items-center gap-2">
           {session ? (
-            <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-2 text-zinc-500 hover:text-white">
-              <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Logout</span>
-            </Button>
+            <div className="flex items-center gap-2 mr-2">
+              <Badge variant="outline" className="text-zinc-400 border-zinc-800 hidden sm:flex">
+                {session.user.email}
+              </Badge>
+              <Button variant="ghost" size="icon" onClick={handleLogout} className="text-zinc-500 hover:text-red-400 hover:bg-red-950/20">
+                <LogOut className="w-4 h-4" />
+              </Button>
+            </div>
           ) : (
             <Button variant="ghost" size="sm" onClick={() => setIsAuthDialogOpen(true)} className="gap-2 text-zinc-500 hover:text-white">
               <User className="w-4 h-4" />
@@ -183,7 +188,7 @@ const Index = () => {
             <div className="w-20 h-20 rounded-2xl gradient-primary flex items-center justify-center mb-6 animate-pulse-slow">
               <Bot className="w-10 h-10 text-primary-foreground" />
             </div>
-            <h2 className="text-2xl font-semibold mb-2">Multi AI에 오신 것을 환영합니다</h2>
+            <h2 className="text-2xl font-semibold mb-2">AI_ALL에 오신 것을 환영합니다</h2>
             <p className="text-muted-foreground max-w-md mb-8">
               GPT-4o, Claude, Gemini, DeepSeek 등 다양한 AI 모델과 대화하세요.
               Synthesis 모드로 여러 모델의 답변을 종합할 수도 있습니다.

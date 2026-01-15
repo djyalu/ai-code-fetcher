@@ -24,6 +24,16 @@ const MODEL_MAP: Record<string, string> = {
   'gemini-2.0-flash': 'google/gemini-2.0-flash-exp:free',
   'gemini-1.5-pro': 'google/gemini-pro-1.5',
   'deepseek-chat': 'deepseek/deepseek-chat',
+  'google/gemini-2.0-flash-exp:free': 'google/gemini-2.0-flash-exp:free',
+  'xiaomi/mimo-v2-flash:free': 'xiaomi/mimo-v2-flash:free',
+  'nvidia/nemotron-3-nano-30b-a3b:free': 'nvidia/nemotron-3-nano-30b-a3b:free',
+  'qwen/qwen3-coder-480b-a35b:free': 'qwen/qwen3-coder-480b-a35b:free',
+  'mistralai/devstral-2-2512:free': 'mistralai/devstral-2-2512:free',
+  'tngtech/r1t-chimera:free': 'tngtech/r1t-chimera:free',
+  'allenai/molmo2-8b:free': 'allenai/molmo2-8b:free',
+  'meta-llama/llama-3.1-70b-instruct:free': 'meta-llama/llama-3.1-70b-instruct:free',
+  'allenai/olmo-3.1-32b-think:free': 'allenai/olmo-3.1-32b-think:free',
+  'arcee-ai/trinity-mini:free': 'arcee-ai/trinity-mini:free',
 };
 
 Deno.serve(async (req) => {
@@ -91,8 +101,8 @@ Deno.serve(async (req) => {
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Internal server error';
     console.error('Error in chat function:', errorMessage);
-    return new Response(JSON.stringify({ 
-      error: errorMessage 
+    return new Response(JSON.stringify({
+      error: errorMessage
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
