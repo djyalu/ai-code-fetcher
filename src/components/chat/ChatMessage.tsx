@@ -3,10 +3,8 @@ import { getModelById } from '@/constants/models';
 import { User, Bot, Loader2, Sparkles, Quote, Copy, Check } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-
-const Markdown = ReactMarkdown as any;
 
 interface ChatMessageProps {
   message: Message;
@@ -27,6 +25,144 @@ const getProviderStyles = (provider?: string) => {
     default:
       return 'border-white/10 bg-white/5 shadow-xl';
   }
+};
+
+// Define markdown components outside to avoid recreation and use proper forwardRef
+const MarkdownH1 = React.forwardRef<HTMLHeadingElement, React.HTMLAttributes<HTMLHeadingElement>>(
+  (props, ref) => (
+    <h1
+      ref={ref}
+      className="text-xl font-extrabold text-zinc-950 dark:text-white border-b border-zinc-200 dark:border-zinc-800 pb-3 mb-5"
+      {...props}
+    />
+  )
+);
+MarkdownH1.displayName = 'MarkdownH1';
+
+const MarkdownH2 = React.forwardRef<HTMLHeadingElement, React.HTMLAttributes<HTMLHeadingElement>>(
+  (props, ref) => (
+    <h2
+      ref={ref}
+      className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mt-8 mb-4 flex items-center gap-2"
+      {...props}
+    />
+  )
+);
+MarkdownH2.displayName = 'MarkdownH2';
+
+const MarkdownH3 = React.forwardRef<HTMLHeadingElement, React.HTMLAttributes<HTMLHeadingElement>>(
+  (props, ref) => (
+    <h3 ref={ref} className="text-base font-bold text-zinc-800 dark:text-zinc-200 mt-6 mb-3" {...props} />
+  )
+);
+MarkdownH3.displayName = 'MarkdownH3';
+
+const MarkdownP = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLParagraphElement>>(
+  (props, ref) => (
+    <p ref={ref} className="text-zinc-900 dark:text-zinc-100 leading-relaxed mb-4 font-medium" {...props} />
+  )
+);
+MarkdownP.displayName = 'MarkdownP';
+
+const MarkdownLI = React.forwardRef<HTMLLIElement, React.LiHTMLAttributes<HTMLLIElement>>(
+  (props, ref) => (
+    <li ref={ref} className="text-zinc-900 dark:text-zinc-100 mb-2 font-medium" {...props} />
+  )
+);
+MarkdownLI.displayName = 'MarkdownLI';
+
+const MarkdownStrong = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
+  (props, ref) => (
+    <strong ref={ref} className="font-black text-zinc-950 dark:text-white" {...props} />
+  )
+);
+MarkdownStrong.displayName = 'MarkdownStrong';
+
+const MarkdownCode = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
+  ({ className, ...props }, ref) => (
+    <code
+      ref={ref}
+      className={`${className || ''} bg-zinc-200 dark:bg-zinc-800 text-zinc-950 dark:text-zinc-200 rounded px-1.5 py-0.5 text-[0.85rem] font-mono font-bold`}
+      {...props}
+    />
+  )
+);
+MarkdownCode.displayName = 'MarkdownCode';
+
+const MarkdownPre = React.forwardRef<HTMLPreElement, React.HTMLAttributes<HTMLPreElement>>(
+  (props, ref) => (
+    <pre
+      ref={ref}
+      className="bg-zinc-100 dark:bg-zinc-950/50 border border-zinc-200 dark:border-white/5 rounded-xl p-5 my-6 overflow-x-auto scrollbar-thin shadow-inner"
+      {...props}
+    />
+  )
+);
+MarkdownPre.displayName = 'MarkdownPre';
+
+const MarkdownTable = React.forwardRef<HTMLTableElement, React.TableHTMLAttributes<HTMLTableElement>>(
+  ({ className, ...props }, ref) => (
+    <div className="overflow-x-auto my-8 rounded-xl border border-zinc-300 dark:border-white/10 bg-white dark:bg-white/5 shadow-md">
+      <table
+        ref={ref}
+        className={`min-w-full divide-y divide-zinc-200 dark:divide-white/10 ${className || ''}`}
+        {...props}
+      />
+    </div>
+  )
+);
+MarkdownTable.displayName = 'MarkdownTable';
+
+const MarkdownTHead = React.forwardRef<HTMLTableSectionElement, React.HTMLAttributes<HTMLTableSectionElement>>(
+  (props, ref) => <thead ref={ref} className="bg-zinc-100 dark:bg-white/5" {...props} />
+);
+MarkdownTHead.displayName = 'MarkdownTHead';
+
+const MarkdownTH = React.forwardRef<HTMLTableCellElement, React.ThHTMLAttributes<HTMLTableCellElement>>(
+  (props, ref) => (
+    <th
+      ref={ref}
+      className="px-4 py-3.5 text-left text-xs font-black text-zinc-700 dark:text-zinc-300 uppercase tracking-widest"
+      {...props}
+    />
+  )
+);
+MarkdownTH.displayName = 'MarkdownTH';
+
+const MarkdownTD = React.forwardRef<HTMLTableCellElement, React.TdHTMLAttributes<HTMLTableCellElement>>(
+  (props, ref) => (
+    <td
+      ref={ref}
+      className="px-4 py-3.5 text-sm text-zinc-950 dark:text-zinc-200 border-t border-zinc-200 dark:border-white/5 font-semibold"
+      {...props}
+    />
+  )
+);
+MarkdownTD.displayName = 'MarkdownTD';
+
+const MarkdownTR = React.forwardRef<HTMLTableRowElement, React.HTMLAttributes<HTMLTableRowElement>>(
+  (props, ref) => (
+    <tr ref={ref} className="hover:bg-zinc-50 dark:hover:bg-white/[0.02] transition-colors" {...props} />
+  )
+);
+MarkdownTR.displayName = 'MarkdownTR';
+
+// Use type assertion to bypass strict type checking for react-markdown components
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const markdownComponents: any = {
+  h1: MarkdownH1,
+  h2: MarkdownH2,
+  h3: MarkdownH3,
+  p: MarkdownP,
+  li: MarkdownLI,
+  strong: MarkdownStrong,
+  code: MarkdownCode,
+  pre: MarkdownPre,
+  table: MarkdownTable,
+  thead: MarkdownTHead,
+  th: MarkdownTH,
+  td: MarkdownTD,
+  tr: MarkdownTR,
 };
 
 export const ChatMessage = ({ message }: ChatMessageProps) => {
@@ -53,120 +189,6 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // react-markdown can attach refs to custom renderers. Use forwardRef wrappers to avoid warnings.
-  const markdownComponents: any = useMemo(() => {
-    const H1 = React.forwardRef<HTMLHeadingElement, any>(({ node, ...props }, ref) => (
-      <h1
-        ref={ref}
-        className="text-xl font-extrabold text-zinc-950 dark:text-white border-b border-zinc-200 dark:border-zinc-800 pb-3 mb-5"
-        {...props}
-      />
-    ));
-    H1.displayName = 'MarkdownH1';
-
-    const H2 = React.forwardRef<HTMLHeadingElement, any>(({ node, ...props }, ref) => (
-      <h2
-        ref={ref}
-        className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mt-8 mb-4 flex items-center gap-2"
-        {...props}
-      />
-    ));
-    H2.displayName = 'MarkdownH2';
-
-    const H3 = React.forwardRef<HTMLHeadingElement, any>(({ node, ...props }, ref) => (
-      <h3 ref={ref} className="text-base font-bold text-zinc-800 dark:text-zinc-200 mt-6 mb-3" {...props} />
-    ));
-    H3.displayName = 'MarkdownH3';
-
-    const P = React.forwardRef<HTMLParagraphElement, any>(({ node, ...props }, ref) => (
-      <p ref={ref} className="text-zinc-900 dark:text-zinc-100 leading-relaxed mb-4 font-medium" {...props} />
-    ));
-    P.displayName = 'MarkdownP';
-
-    const LI = React.forwardRef<HTMLLIElement, any>(({ node, ...props }, ref) => (
-      <li ref={ref} className="text-zinc-900 dark:text-zinc-100 mb-2 font-medium" {...props} />
-    ));
-    LI.displayName = 'MarkdownLI';
-
-    const Strong = React.forwardRef<HTMLElement, any>(({ node, ...props }, ref) => (
-      <strong ref={ref} className="font-black text-zinc-950 dark:text-white" {...props} />
-    ));
-    Strong.displayName = 'MarkdownStrong';
-
-    const Code = React.forwardRef<HTMLElement, any>(({ node, className, children, ...props }, ref) => (
-      <code
-        ref={ref}
-        className={`${className || ''} bg-zinc-200 dark:bg-zinc-800 text-zinc-950 dark:text-zinc-200 rounded px-1.5 py-0.5 text-[0.85rem] font-mono font-bold`}
-        {...props}
-      >
-        {children}
-      </code>
-    ));
-    Code.displayName = 'MarkdownCode';
-
-    const Pre = React.forwardRef<HTMLPreElement, any>(({ node, ...props }, ref) => (
-      <pre
-        ref={ref}
-        className="bg-zinc-100 dark:bg-zinc-950/50 border border-zinc-200 dark:border-white/5 rounded-xl p-5 my-6 overflow-x-auto scrollbar-thin shadow-inner"
-        {...props}
-      />
-    ));
-    Pre.displayName = 'MarkdownPre';
-
-    const Table = React.forwardRef<HTMLTableElement, any>(({ node, className, ...props }, ref) => (
-      <table
-        ref={ref}
-        className={`block w-full overflow-x-auto my-8 rounded-xl border border-zinc-300 dark:border-white/10 bg-white dark:bg-white/5 shadow-md divide-y divide-zinc-200 dark:divide-white/10 ${className || ''}`}
-        {...props}
-      />
-    ));
-    Table.displayName = 'MarkdownTable';
-
-    const THead = React.forwardRef<HTMLTableSectionElement, any>(({ node, ...props }, ref) => (
-      <thead ref={ref} className="bg-zinc-100 dark:bg-white/5" {...props} />
-    ));
-    THead.displayName = 'MarkdownTHead';
-
-    const TH = React.forwardRef<HTMLTableCellElement, any>(({ node, ...props }, ref) => (
-      <th
-        ref={ref}
-        className="px-4 py-3.5 text-left text-xs font-black text-zinc-700 dark:text-zinc-300 uppercase tracking-widest"
-        {...props}
-      />
-    ));
-    TH.displayName = 'MarkdownTH';
-
-    const TD = React.forwardRef<HTMLTableCellElement, any>(({ node, ...props }, ref) => (
-      <td
-        ref={ref}
-        className="px-4 py-3.5 text-sm text-zinc-950 dark:text-zinc-200 border-t border-zinc-200 dark:border-white/5 font-semibold"
-        {...props}
-      />
-    ));
-    TD.displayName = 'MarkdownTD';
-
-    const TR = React.forwardRef<HTMLTableRowElement, any>(({ node, ...props }, ref) => (
-      <tr ref={ref} className="hover:bg-zinc-50 dark:hover:bg-white/[0.02] transition-colors" {...props} />
-    ));
-    TR.displayName = 'MarkdownTR';
-
-    return {
-      h1: H1,
-      h2: H2,
-      h3: H3,
-      p: P,
-      li: LI,
-      strong: Strong,
-      code: Code,
-      pre: Pre,
-      table: Table,
-      thead: THead,
-      th: TH,
-      td: TD,
-      tr: TR,
-    };
-  }, []);
-
   return (
     <div className={`flex gap-4 animate-fade-in group ${isUser ? 'flex-row-reverse' : ''}`}>
       <div
@@ -188,7 +210,7 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
 
       <div className={`flex-1 max-w-[85%] ${isUser ? 'text-right' : ''}`}>
         {!isUser && (
-          <div className={`text-[10px] font-bold tracking-widest uppercase mb-1.5 flex items-center justify-between group/header`}>
+          <div className="text-[10px] font-bold tracking-widest uppercase mb-1.5 flex items-center justify-between group/header">
             <div className="flex items-center gap-1.5">
               {model ? (
                 <>
@@ -251,13 +273,17 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
           {message.isStreaming ? (
             <div className="flex items-center gap-3 py-1">
               <Loader2 className="w-4 h-4 animate-spin text-zinc-400" />
-              <span className="text-sm font-medium text-zinc-500 animate-pulse">상각 중...</span>
+              <span className="text-sm font-medium text-zinc-500 animate-pulse">생성 중...</span>
             </div>
           ) : (
             <div className="prose prose-sm dark:prose-invert max-w-none leading-relaxed prose-p:leading-relaxed prose-headings:mb-3 prose-headings:mt-4 prose-p:mb-3 prose-table:my-4">
-              <Markdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                components={markdownComponents as any}
+              >
                 {processedContent}
-              </Markdown>
+              </ReactMarkdown>
             </div>
           )}
         </div>
@@ -269,4 +295,3 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
     </div>
   );
 };
-

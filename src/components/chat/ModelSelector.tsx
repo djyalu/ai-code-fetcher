@@ -1,6 +1,6 @@
 import { MODELS } from '@/constants/models';
 import { AIModel } from '@/types/chat';
-import { Check, ChevronDown, Sparkles, Settings, Lock, Info } from 'lucide-react';
+import { Check, ChevronDown, Sparkles, Settings, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -71,9 +71,9 @@ export const ModelSelector = ({
       : selectedModel === model.id;
 
     return (
-      <TooltipProvider key={model.id}>
-        <Tooltip delayDuration={300}>
-          <TooltipTrigger asChild>
+      <Tooltip key={model.id} delayDuration={300}>
+        <TooltipTrigger asChild>
+          <div>
             <DropdownMenuItem
               onClick={(e) => {
                 if (synthesisMode) {
@@ -110,22 +110,22 @@ export const ModelSelector = ({
                 </p>
               </div>
             </DropdownMenuItem>
-          </TooltipTrigger>
-          <TooltipContent side="left" className="glass-strong border-zinc-800 text-xs py-2 px-3 max-w-[200px]">
-            {isLocked ? (
-              <div className="flex items-center gap-2">
-                <Lock className="w-3 h-3 text-amber-500" />
-                <span>유료 모델은 로그인이 필요합니다.</span>
-              </div>
-            ) : (
-              <div className="space-y-1">
-                <div className="font-semibold text-zinc-300">{model.name}</div>
-                <div className="text-[10px] text-zinc-400">{model.description}</div>
-              </div>
-            )}
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="left" className="glass-strong border-zinc-800 text-xs py-2 px-3 max-w-[200px]">
+          {isLocked ? (
+            <div className="flex items-center gap-2">
+              <Lock className="w-3 h-3 text-amber-500" />
+              <span>유료 모델은 로그인이 필요합니다.</span>
+            </div>
+          ) : (
+            <div className="space-y-1">
+              <div className="font-semibold text-zinc-300">{model.name}</div>
+              <div className="text-[10px] text-zinc-400">{model.description}</div>
+            </div>
+          )}
+        </TooltipContent>
+      </Tooltip>
     );
   };
 
