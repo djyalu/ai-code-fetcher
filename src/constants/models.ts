@@ -71,6 +71,26 @@ export const MODELS: AIModel[] = [
     contextWindow: 64000,
     color: '#5865f2',
   },
+  {
+    id: 'perplexity/sonar',
+    name: 'Perplexity Sonar',
+    provider: 'perplexity',
+    description: '최신 정보 검색에 특화된 추론 모델',
+    inputPrice: 1,
+    outputPrice: 1,
+    contextWindow: 128000,
+    color: '#20b2aa',
+  },
+  {
+    id: 'perplexity/sonar-deep-research',
+    name: 'Sonar Deep Research',
+    provider: 'perplexity',
+    description: '심층 학술 및 탐사 연구를 위한 고성능 검색 모델',
+    inputPrice: 2,
+    outputPrice: 2,
+    contextWindow: 128000,
+    color: '#008080',
+  },
   // Free Research Models
   {
     id: 'google/gemini-2.0-flash-exp:free',

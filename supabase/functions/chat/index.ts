@@ -34,6 +34,8 @@ const MODEL_MAP: Record<string, string> = {
   'meta-llama/llama-3.1-70b-instruct:free': 'meta-llama/llama-3.1-70b-instruct:free',
   'allenai/olmo-3.1-32b-think:free': 'allenai/olmo-3.1-32b-think:free',
   'arcee-ai/trinity-mini:free': 'arcee-ai/trinity-mini:free',
+  'perplexity/sonar': 'perplexity/sonar',
+  'perplexity/sonar-deep-research': 'perplexity/sonar-deep-research',
 };
 
 async function callOpenRouter(
