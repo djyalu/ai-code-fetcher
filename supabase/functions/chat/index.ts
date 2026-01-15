@@ -25,7 +25,7 @@ const MODEL_MAP: Record<string, string> = {
   'gemini-1.5-pro': 'google/gemini-pro-1.5',
   'deepseek-chat': 'deepseek/deepseek-chat',
   'google/gemini-2.0-flash-exp:free': 'google/gemini-2.0-flash-exp:free',
-  'xiaomi/mimo-v2-flash:free': 'xiaomi/mimo-v2-flash:free',
+  
   'nvidia/nemotron-3-nano-30b-a3b:free': 'nvidia/nemotron-3-nano-30b-a3b:free',
   'qwen/qwen3-coder-480b-a35b:free': 'qwen/qwen3-coder-480b-a35b:free',
   'mistralai/devstral-2-2512:free': 'mistralai/devstral-2-2512:free',
