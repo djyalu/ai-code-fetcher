@@ -174,10 +174,25 @@ Deno.serve(async (req) => {
 
       const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
       const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
-      const userEmail = userData?.user?.email;
+      const userId = userData?.user?.id;
 
-      if (userError || !userEmail || userEmail !== adminEmail) {
-        console.error('Perplexity access denied for', userEmail, userError?.message);
+      if (userError || !userId) {
+        console.error('Perplexity access denied: invalid token', userError?.message);
+        return new Response(JSON.stringify({ error: 'Perplexity models are restricted to admin users' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Check user's role in the profiles table. Only role === 'admin' is allowed.
+      const { data: profile, error: profileError } = await supabaseAdmin
+        .from('profiles')
+        .select('role')
+        .eq('id', userId)
+        .single();
+
+      if (profileError || !profile || profile.role !== 'admin') {
+        console.error('Perplexity access denied - not an admin', profileError?.message);
         return new Response(JSON.stringify({ error: 'Perplexity models are restricted to admin users' }), {
           status: 403,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
