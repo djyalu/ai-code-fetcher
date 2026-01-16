@@ -141,33 +141,42 @@ const Index = () => {
     setIsLoading(true);
 
     try {
-      // Clean conversation history to ensure alternating roles and better context
-      // This preventing consecutive assistant messages which causes some models to fail
-      const conversationHistory: { role: 'user' | 'assistant' | 'system', content: string }[] = [];
-      let tempAssistantContent = "";
-
-      messages.forEach(m => {
-        if (m.role === 'user') {
-          if (tempAssistantContent) {
-            conversationHistory.push({ role: 'assistant', content: tempAssistantContent });
-            tempAssistantContent = "";
+      // Normalize conversation history to avoid consecutive messages of the same role
+      // - Merge consecutive messages with the same role
+      // - Ensure there are no consecutive user messages when appending the new user input
+      // - If the conversation starts with an assistant message (rare), insert a small
+      //   synthetic user placeholder so providers that require strict alternation (eg. Anthropic)
+      //   receive a user->assistant pattern.
+      const normalizeConversation = (msgs: Message[]) => {
+        const out: { role: 'user' | 'assistant' | 'system'; content: string }[] = [];
+        for (const m of msgs) {
+          // Preserve system messages as-is (they'll be handled/sanitized server-side when needed)
+          if (m.role === 'system') {
+            out.push({ role: 'system', content: m.content });
+            continue;
           }
-          conversationHistory.push({ role: 'user', content: m.content });
-        } else if (m.role === 'assistant') {
-          // If it's a synthesis, we prioritize it as the answer for this turn
-          if (m.content.includes('Synthesized Answer')) {
-            tempAssistantContent = m.content;
-          } else if (!tempAssistantContent.includes('Synthesized Answer')) {
-            // Otherwise accumulate individual responses but merge them
-            tempAssistantContent = tempAssistantContent
-              ? `${tempAssistantContent}\n\n${m.content}`
-              : m.content;
+
+          const last = out[out.length - 1];
+          if (last && last.role === m.role) {
+            // Merge consecutive same-role messages
+            last.content = `${last.content}\n\n${m.content}`;
+          } else {
+            out.push({ role: m.role, content: m.content });
           }
         }
-      });
+        return out;
+      };
 
-      if (tempAssistantContent) {
-        conversationHistory.push({ role: 'assistant', content: tempAssistantContent });
+      const conversationHistory = normalizeConversation(messages);
+
+      // If first non-system role is assistant, insert a small synthetic user placeholder
+      // so models that enforce strict alternation receive user -> assistant.
+      const firstNonSystemIdx = conversationHistory.findIndex(m => m.role !== 'system');
+      if (firstNonSystemIdx >= 0 && conversationHistory[firstNonSystemIdx].role === 'assistant') {
+        conversationHistory.splice(firstNonSystemIdx, 0, {
+          role: 'user',
+          content: '[이전 대화 맥락] 이전 AI 응답이 먼저 존재합니다. 새로운 질문을 아래에 입력합니다.'
+        });
       }
 
       if (synthesisMode) {
@@ -219,10 +228,17 @@ const Index = () => {
           throw new Error('선택하신 모델은 프리미엄 모델입니다. 로그인이 필요합니다.');
         }
 
-        const response = await sendMessage(
-          [...conversationHistory, { role: 'user', content }],
-          selectedModel
-        );
+        // When appending the new user message, avoid creating consecutive user messages.
+        const convoForSend = [...conversationHistory];
+        const lastEntry = convoForSend[convoForSend.length - 1];
+        if (lastEntry && lastEntry.role === 'user') {
+          // Merge the new input into the last user entry
+          lastEntry.content = `${lastEntry.content}\n\n${content}`;
+        } else {
+          convoForSend.push({ role: 'user', content });
+        }
+
+        const response = await sendMessage(convoForSend, selectedModel);
 
         const aiMessage: Message = {
           id: crypto.randomUUID(),

@@ -176,16 +176,17 @@ export const MODELS: AIModel[] = [
 
 export const SYNTHESIS_MODELS = ['google/gemini-2.0-flash-exp:free', 'qwen/qwen-2.5-72b-instruct:free', 'meta-llama/llama-3.3-70b-instruct:free'];
 
-export const DEFAULT_SYSTEM_PROMPT = `You are a helpful AI assistant. Respond concisely and accurately.`;
+export const DEFAULT_SYSTEM_PROMPT = `당신은 친절한 AI 도우미입니다. 가능한 경우 사용자에게 한국어로 응답하세요. 사용자가 다른 언어로 명시적으로 요청하면 그 언어로 응답해도 되지만, 기본적으로 한국어 우선 정책을 따르며 응답은 간결하고 정확하게 제공하세요.`;
 
-export const SYNTHESIS_PROMPT = `You are an expert synthesizer and data analyst. You will receive responses from multiple AI models to the same user question.
+export const SYNTHESIS_PROMPT = `You are an expert synthesizer and data analyst. Prefer producing the synthesis in Korean by default; if the user explicitly asked in another language, match that language.
+You will receive responses from multiple AI models to the same user question.
 Your task is to create a comprehensive synthesis that adds meta-analysis of the model responses.
 
 Structure your response as follows:
 1. ✨ **Master Synthesis**: A comprehensive final answer that resolves contradictions and provides the most accurate conclusion.
 2. 🔍 **Model Comparison Analysis**:
-   - **Similarities (공통점)**: Key points that all or most models agreed upon.
-   - **Differences (차이점)**: Unique insights or different perspectives provided by specific models.
+  - **Similarities (공통점)**: Key points that all or most models agreed upon.
+  - **Differences (차이점)**: Unique insights or different perspectives provided by specific models.
 3. ⚖️ **Conflict & Ratio (상충 정보 및 비율)**: If models provide conflicting information, explicitly state the ratio (e.g., "3 out of 5 models (60%) suggest X, while 2 models (40%) suggest Y").
 4. 💾 **Key Takeaways**: A quick summary of the most critical facts identified across the orchestration.
 

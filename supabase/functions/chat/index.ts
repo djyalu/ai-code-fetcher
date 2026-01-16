@@ -43,25 +43,26 @@ function sanitizeMessagesForModel(model: string, messages: ChatMessage[]): ChatM
   // Some upstream providers (notably Google AI Studio for Gemma IT) reject "developer/system" instructions.
   // When we detect those models, we remove system messages and fold them into the first user message.
   if (model.includes('google/gemma-3-27b-it')) {
+    // Gemma (IT) rejects system/developer instructions. Fold system messages into
+    // the first user message when possible. If there's no user message, prepend a
+    // new user message containing the system text.
     const systemText = messages
       .filter((m) => m.role === 'system')
       .map((m) => m.content)
       .join('\n');
 
-    const nonSystem = messages.filter((m) => m.role !== 'system');
+    const nonSystem = messages.filter((m) => m.role !== 'system').map(m => ({ ...m }));
 
     if (!systemText) return nonSystem;
 
-    if (nonSystem.length > 0 && nonSystem[0].role === 'user') {
-      return [
-        {
-          role: 'user',
-          content: `${systemText}\n\n${nonSystem[0].content}`,
-        },
-        ...nonSystem.slice(1),
-      ];
+    // Prefer folding into the first actual user message (preserves existing order)
+    const firstUserIndex = nonSystem.findIndex((m) => m.role === 'user');
+    if (firstUserIndex >= 0) {
+      nonSystem[firstUserIndex].content = `${systemText}\n\n${nonSystem[firstUserIndex].content}`;
+      return nonSystem;
     }
 
+    // No user message exists; create one at the front containing the system text
     return [{ role: 'user', content: systemText }, ...nonSystem];
   }
 
@@ -72,44 +73,62 @@ async function callPerplexity(
   apiKey: string,
   model: string,
   messages: ChatMessage[],
-  stream: boolean
+  stream: boolean,
+  timeoutMs = 15000
 ): Promise<Response> {
-  const response = await fetch('https://api.perplexity.ai/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      stream,
-    }),
-  });
-  return response;
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch('https://api.perplexity.ai/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ model, messages, stream }),
+      signal: controller.signal,
+    });
+    return response;
+  } finally {
+    clearTimeout(id);
+  }
 }
 
 async function callOpenRouter(
   apiKey: string,
   model: string,
   messages: ChatMessage[],
-  stream: boolean
+  stream: boolean,
+  timeoutMs = 15000
 ): Promise<Response> {
-  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://lovable.dev',
-      'X-Title': 'Multi AI Chat',
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      stream,
-    }),
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://lovable.dev',
+        'X-Title': 'Multi AI Chat',
+      },
+      body: JSON.stringify({ model, messages, stream }),
+      signal: controller.signal,
+    });
+    return response;
+  } finally {
+    clearTimeout(id);
+  }
+}
+
+function jsonErrorResponse(message: string, status = 500, code?: string, detail?: any) {
+  const body: any = { message };
+  if (code) body.error_code = code;
+  if (detail) body.detail = detail;
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
-  return response;
 }
 
 // Helper to detect Perplexity models
@@ -193,10 +212,7 @@ Deno.serve(async (req) => {
           const lastChecked = new Date(mh.last_checked_at).getTime();
           if (Date.now() - lastChecked < MODEL_HEALTH_COOLDOWN_MS) {
             console.warn(`Model ${mappedModel} is in cooldown (last failed at ${mh.last_checked_at})`);
-            return new Response(JSON.stringify({ error: `Model ${mappedModel} temporarily unavailable` }), {
-              status: 503,
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            });
+            return jsonErrorResponse(`Model ${mappedModel} temporarily unavailable`, 503, 'model_unavailable');
           }
         }
       } catch (e) {
@@ -209,10 +225,7 @@ Deno.serve(async (req) => {
       const authHeader = req.headers.get('authorization') || req.headers.get('Authorization') || '';
       if (!authHeader.startsWith('Bearer ')) {
         console.warn('Paid model access denied: missing bearer token');
-        return new Response(JSON.stringify({ error: 'Paid models require an authenticated user' }), {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+        return jsonErrorResponse('Paid models require an authenticated user', 401, 'auth_required');
       }
 
       const token = authHeader.slice(7);
@@ -220,7 +233,7 @@ Deno.serve(async (req) => {
       const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
       if (!supabaseUrl || !supabaseServiceKey) {
         console.error('Supabase service role key not configured');
-        throw new Error('Server misconfiguration: SUPABASE_SERVICE_ROLE_KEY missing');
+        return jsonErrorResponse('Server misconfiguration: SUPABASE_SERVICE_ROLE_KEY missing', 500, 'server_misconfig');
       }
 
       const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
@@ -230,10 +243,7 @@ Deno.serve(async (req) => {
 
       if (userError || !userId) {
         console.warn('Paid model access denied: invalid token', userError?.message);
-        return new Response(JSON.stringify({ error: 'Paid models require an authenticated user' }), {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+        return jsonErrorResponse('Paid models require an authenticated user', 401, 'auth_required');
       }
 
       // Attach user info to the request context via a small object we can use later for logging
@@ -248,10 +258,7 @@ Deno.serve(async (req) => {
 
       if (!authHeader.startsWith('Bearer ')) {
         console.error('Perplexity access denied: missing bearer token');
-        return new Response(JSON.stringify({ error: 'Perplexity models are restricted to admin users' }), {
-          status: 403,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+        return jsonErrorResponse('Perplexity models are restricted to admin users', 403, 'forbidden');
       }
 
       const token = authHeader.slice(7);
@@ -261,7 +268,7 @@ Deno.serve(async (req) => {
       const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
       if (!supabaseUrl || !supabaseServiceKey) {
         console.error('Supabase service role key not configured');
-        throw new Error('Server misconfiguration: SUPABASE_SERVICE_ROLE_KEY missing');
+        return jsonErrorResponse('Server misconfiguration: SUPABASE_SERVICE_ROLE_KEY missing', 500, 'server_misconfig');
       }
 
       const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
@@ -270,10 +277,7 @@ Deno.serve(async (req) => {
 
       if (userError || !userId) {
         console.error('Perplexity access denied: invalid token', userError?.message);
-        return new Response(JSON.stringify({ error: 'Perplexity models are restricted to admin users' }), {
-          status: 403,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+        return jsonErrorResponse('Perplexity models are restricted to admin users', 403, 'forbidden');
       }
 
       // Check user's role in the profiles table. Only role === 'admin' is allowed.
@@ -285,16 +289,13 @@ Deno.serve(async (req) => {
 
       if (profileError || !profile || profile.role !== 'admin') {
         console.error('Perplexity access denied - not an admin', profileError?.message);
-        return new Response(JSON.stringify({ error: 'Perplexity models are restricted to admin users' }), {
-          status: 403,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+        return jsonErrorResponse('Perplexity models are restricted to admin users', 403, 'forbidden');
       }
 
       const perplexityKey = Deno.env.get('PERPLEXITY_API_KEY');
       if (!perplexityKey) {
         console.error('PERPLEXITY_API_KEY not configured');
-        throw new Error('Perplexity API key not configured');
+        return jsonErrorResponse('Perplexity API key not configured', 500, 'server_misconfig');
       }
 
       const perplexityModelName = getPerplexityModelName(mappedModel);
@@ -320,7 +321,7 @@ Deno.serve(async (req) => {
           console.warn('Failed to upsert model_health for Perplexity (non-fatal):', (e as any)?.message || e);
         }
 
-        throw new Error(`Perplexity API error: ${response.status}`);
+  return jsonErrorResponse(`Perplexity API error: ${response.status}`, response.status, 'upstream_error');
       }
 
       if (stream) {
@@ -370,7 +371,7 @@ Deno.serve(async (req) => {
     const apiKey = Deno.env.get('OPENROUTER_API_KEY');
     if (!apiKey) {
       console.error('OPENROUTER_API_KEY not configured');
-      throw new Error('OpenRouter API key not configured');
+      return jsonErrorResponse('OpenRouter API key not configured', 500, 'server_misconfig');
     }
 
     const effectiveMessages = sanitizeMessagesForModel(mappedModel, messages);
@@ -511,11 +512,7 @@ Deno.serve(async (req) => {
     const errorMessage = error instanceof Error ? error.message : 'Internal server error';
     console.error('Error in chat function:', errorMessage);
 
-    return new Response(JSON.stringify({
-      error: errorMessage
-    }), {
-      status,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    // Use the standardized JSON error response
+    return jsonErrorResponse(errorMessage, status, (error as any)?.code || undefined, (error as any)?.detail || undefined);
   }
 });
