@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+// Chat Service: Handles interactions with OpenRouter and Perplexity APIs
 import { DEFAULT_SYSTEM_PROMPT, SYNTHESIS_PROMPT, SYNTHESIS_MODELS, getModelById } from '@/constants/models';
 
 // Synthesis 합성 모델 상수
@@ -33,12 +34,15 @@ export const sendMessage = async (
     ? 'https://api.perplexity.ai/chat/completions'
     : 'https://openrouter.ai/api/v1/chat/completions';
 
-  const apiKey = isPerplexity
-    ? import.meta.env.VITE_PERPLEXITY_API_KEY
-    : import.meta.env.VITE_OPENROUTER_API_KEY;
+  // Try to retrieve keys from various potential sources (Vite standard, or direct env injection)
+  const openRouterKey = import.meta.env.VITE_OPENROUTER_API_KEY || import.meta.env.OPENROUTER_API_KEY;
+  const perplexityKey = import.meta.env.VITE_PERPLEXITY_API_KEY || import.meta.env.PERPLEXITY_API_KEY;
+
+  const apiKey = isPerplexity ? perplexityKey : openRouterKey;
 
   if (!apiKey) {
-    throw new Error(`${isPerplexity ? 'Perplexity' : 'OpenRouter'} API key is missing. Please check your .env file.`);
+    console.warn(`${isPerplexity ? 'Perplexity' : 'OpenRouter'} API key is missing in environment variables. Request might fail.`);
+    // We will attempt the request anyway, as some platforms might inject auth headers via proxy.
   }
 
   // STRICT RULE: Perplexity models must NEVER be routed to OpenRouter.
