@@ -31,7 +31,12 @@ const getProviderColor = (provider: string) => {
     case 'google': return 'bg-google';
     case 'deepseek': return 'bg-deepseek';
     case 'perplexity': return 'bg-teal-500';
-    default: return 'bg-primary';
+    case 'xiaomi': return 'bg-orange-500';
+    case 'nvidia': return 'bg-green-500';
+    case 'mistral': return 'bg-indigo-500';
+    case 'meta': return 'bg-blue-600';
+    case 'arcee': return 'bg-purple-500';
+    default: return 'bg-zinc-500';
   }
 };
 
@@ -166,7 +171,7 @@ export const ModelSelector = ({
             )}
           </div>
 
-          <div className="max-h-[450px] overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-800 pr-1">
+          <div className="max-h-[60vh] overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-800 pr-1">
             {/* Premium Models Group */}
             {premiumModels.length > 0 && (
               <div className="mb-2">
