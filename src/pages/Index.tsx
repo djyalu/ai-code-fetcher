@@ -24,6 +24,7 @@ const Index = () => {
   const [isSystemControlOpen, setIsSystemControlOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const [promptHistory, setPromptHistory] = useState<string[]>(() => {
     const saved = localStorage.getItem('prompt_history');
@@ -33,7 +34,7 @@ const Index = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  const isAdmin = session?.user?.email === ADMIN_EMAIL;
+  // isAdmin is derived from the server-side profile role. syncProfile will set it.
 
   // Helper to check if a model is premium
   const isPremiumModel = (modelId: string) => {
@@ -79,6 +80,7 @@ const Index = () => {
 
   const syncProfile = async (user: any) => {
     try {
+      // Check and upsert profile; derive admin role from profile.role
       const isSystemAdmin = user.email === ADMIN_EMAIL;
       const { data: profile } = await (supabase
         .from('profiles' as any) as any)
@@ -87,13 +89,22 @@ const Index = () => {
         .single();
 
       if (!profile) {
+        // Insert with role based on whether this initial user email matches the configured admin
+        const role = isSystemAdmin ? 'admin' : 'user';
         await (supabase.from('profiles' as any) as any).insert({
           id: user.id,
           email: user.email,
-          role: isSystemAdmin ? 'admin' : 'user'
+          role
         });
-      } else if (isSystemAdmin && profile.role !== 'admin') {
-        await (supabase.from('profiles' as any) as any).update({ role: 'admin' }).eq('id', user.id);
+        setIsAdmin(role === 'admin');
+      } else {
+        // If profile exists, respect its role value
+        if (isSystemAdmin && profile.role !== 'admin') {
+          await (supabase.from('profiles' as any) as any).update({ role: 'admin' }).eq('id', user.id);
+          setIsAdmin(true);
+        } else {
+          setIsAdmin(profile.role === 'admin');
+        }
       }
     } catch (error) {
       console.error('Error syncing profile:', error);

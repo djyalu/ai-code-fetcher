@@ -94,18 +94,30 @@ export const sendSynthesisRequest = async (
     { role: 'user' as const, content: userMessage },
   ];
 
-  // Query all synthesis models in parallel
-  const modelPromises = synthesisModelIds.map(async (modelId) => {
-    try {
-      const response = await sendMessage(messages, modelId);
-      return { modelId, content: response.content, error: null };
-    } catch (error) {
-      console.error(`Error from ${modelId}:`, error);
-      return { modelId, content: '', error: (error as Error).message };
-    }
-  });
+  // Query synthesis models with concurrency limit (3 at a time).
+  const chunkSize = 3;
+  const results: { modelId: string; content: string; error: string | null }[] = [];
 
-  const results = await Promise.all(modelPromises);
+  for (let i = 0; i < synthesisModelIds.length; i += chunkSize) {
+    const chunk = synthesisModelIds.slice(i, i + chunkSize);
+    const chunkPromises = chunk.map(async (modelId) => {
+      try {
+        const response = await sendMessage(messages, modelId);
+        return { modelId, content: response.content, error: null };
+      } catch (error) {
+        console.error(`Error from ${modelId}:`, error);
+        return { modelId, content: '', error: (error as Error).message };
+      }
+    });
+
+    const chunkResults = await Promise.all(chunkPromises);
+    results.push(...chunkResults);
+    // small delay between chunks to reduce burst pressure
+    if (i + chunkSize < synthesisModelIds.length) {
+      await new Promise(resolve => setTimeout(resolve, 250));
+    }
+  }
+
   const successfulResponses = results.filter(r => !r.error && r.content);
 
   // Generate synthesis using Gemini
