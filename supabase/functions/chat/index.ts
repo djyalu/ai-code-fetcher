@@ -129,6 +129,7 @@ function isPerplexityModel(model: string): boolean {
 const PAID_MODELS_CACHE_TTL_MS = 60 * 1000; // 1 minute
 let paidModelsCache: Set<string> = new Set();
 let paidModelsCacheFetchedAt = 0;
+const MODEL_HEALTH_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes cooldown when a model is marked unavailable
 
 async function refreshPaidModelsCache(supabaseAdmin: any) {
   try {
@@ -138,11 +139,11 @@ async function refreshPaidModelsCache(supabaseAdmin: any) {
       paidModelsCacheFetchedAt = Date.now();
       console.log('Paid models cache refreshed:', Array.from(paidModelsCache));
     } else if (error) {
-      console.warn('Failed to refresh paid models cache:', error.message || error);
+  console.warn('Failed to refresh paid models cache:', (error as any)?.message || error);
     }
-  } catch (e) {
-    console.warn('Error refreshing paid models cache:', e?.message || e);
-  }
+    } catch (e) {
+      console.warn('Error refreshing paid models cache:', (e as any)?.message || e);
+    }
 }
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -168,6 +169,40 @@ Deno.serve(async (req) => {
 
     const mappedModel = MODEL_MAP[model] || model;
     console.log(`Mapped model: ${mappedModel}`);
+
+    // Create Supabase admin client if possible for health updates and paid-model cache refresh
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    let supabaseAdmin: any = null;
+    if (supabaseUrl && supabaseServiceKey) {
+      supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+      // Refresh paid models cache if stale
+      if (Date.now() - paidModelsCacheFetchedAt > PAID_MODELS_CACHE_TTL_MS) {
+        await refreshPaidModelsCache(supabaseAdmin);
+      }
+
+      // Check model_health for this model and honor cooldown if it's marked unavailable
+      try {
+        const { data: mh, error: mhError } = await supabaseAdmin
+          .from('model_health')
+          .select('is_available, last_checked_at')
+          .eq('model_id', mappedModel)
+          .maybeSingle();
+
+        if (!mhError && mh && mh.is_available === false) {
+          const lastChecked = new Date(mh.last_checked_at).getTime();
+          if (Date.now() - lastChecked < MODEL_HEALTH_COOLDOWN_MS) {
+            console.warn(`Model ${mappedModel} is in cooldown (last failed at ${mh.last_checked_at})`);
+            return new Response(JSON.stringify({ error: `Model ${mappedModel} temporarily unavailable` }), {
+              status: 503,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+        }
+      } catch (e) {
+    console.warn('Failed to read model_health (non-fatal):', (e as any)?.message || e);
+      }
+    }
 
     // If this is a paid model (based on our PAID_MODELS set), require authentication
     if (paidModelsCache.has(model) || paidModelsCache.has(mappedModel)) {
@@ -270,6 +305,21 @@ Deno.serve(async (req) => {
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`Perplexity API error: ${response.status} - ${errorText}`);
+        // Best-effort: mark model health based on failure
+        try {
+          if (supabaseAdmin) {
+            const isAvailable = response.status === 429 ? true : false;
+            await supabaseAdmin.from('model_health').upsert({
+              model_id: `perplexity/${perplexityModelName}`,
+              is_available: isAvailable,
+              last_checked_at: new Date().toISOString(),
+              error_message: `Perplexity ${response.status}: ${errorText}`,
+            }, { onConflict: 'model_id' });
+          }
+        } catch (e) {
+          console.warn('Failed to upsert model_health for Perplexity (non-fatal):', (e as any)?.message || e);
+        }
+
         throw new Error(`Perplexity API error: ${response.status}`);
       }
 
@@ -303,7 +353,7 @@ Deno.serve(async (req) => {
           } as any);
         }
       } catch (e) {
-        console.warn('Prompt logging failed for Perplexity (non-fatal):', e?.message || e);
+        console.warn('Prompt logging failed for Perplexity (non-fatal):', (e as any)?.message || e);
       }
 
       return new Response(JSON.stringify({
@@ -360,6 +410,20 @@ Deno.serve(async (req) => {
         }
 
         const resetHeader = response.headers.get('X-RateLimit-Reset');
+        // Best-effort: mark rate-limit in model_health but don't mark unavailable
+        try {
+          if (supabaseAdmin) {
+            await supabaseAdmin.from('model_health').upsert({
+              model_id: mappedModel,
+              is_available: true,
+              last_checked_at: new Date().toISOString(),
+              error_message: `Rate limited: ${errorText || '429'}`,
+            }, { onConflict: 'model_id' });
+          }
+        } catch (e) {
+          console.warn('Failed to upsert model_health for rate limit (non-fatal):', (e as any)?.message || e);
+        }
+
         lastError = new HttpError(
           resetHeader
             ? `Rate limit exceeded. Try again after reset (${resetHeader}).`
@@ -372,6 +436,21 @@ Deno.serve(async (req) => {
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`OpenRouter API error: ${response.status} - ${errorText}`);
+
+        // If it's a 404 or server error, mark the model unavailable for cooldown window
+        try {
+          if (supabaseAdmin) {
+            const markUnavailable = response.status === 404 || response.status >= 500;
+            await supabaseAdmin.from('model_health').upsert({
+              model_id: mappedModel,
+              is_available: markUnavailable ? false : true,
+              last_checked_at: new Date().toISOString(),
+              error_message: `OpenRouter ${response.status}: ${errorText}`,
+            }, { onConflict: 'model_id' });
+          }
+        } catch (e) {
+          console.warn('Failed to upsert model_health (non-fatal):', (e as any)?.message || e);
+        }
 
         // Retry transient errors, but preserve the upstream status code
         lastError = new HttpError(`OpenRouter API error: ${response.status}`, response.status);
@@ -413,7 +492,7 @@ Deno.serve(async (req) => {
           } as any);
         }
       } catch (e) {
-        console.warn('Prompt logging failed (non-fatal):', e?.message || e);
+        console.warn('Prompt logging failed (non-fatal):', (e as any)?.message || e);
       }
 
       return new Response(JSON.stringify({
