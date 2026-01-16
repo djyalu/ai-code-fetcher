@@ -48,8 +48,11 @@ export const ModelSelector = ({
 }: ModelSelectorProps) => {
   const currentModel = MODELS.find(m => m.id === selectedModel) || MODELS[0];
 
-  const freeModels = MODELS.filter(m => m.inputPrice === 0);
-  const premiumModels = MODELS.filter(m => m.inputPrice > 0);
+  // Hide Perplexity models from non-admin users (admin email is handled by parent)
+  const visibleModels = isAdmin ? MODELS : MODELS.filter(m => m.provider !== 'perplexity');
+
+  const freeModels = visibleModels.filter(m => m.inputPrice === 0);
+  const premiumModels = visibleModels.filter(m => m.inputPrice > 0);
 
   const handleModelClick = (modelId: string, isLocked: boolean) => {
     if (isLocked) return;

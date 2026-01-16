@@ -114,15 +114,43 @@ async function callOpenRouter(
 
 // Helper to detect Perplexity models
 function isPerplexityModel(model: string): boolean {
-  return model.startsWith('perplexity/') || model === 'sonar' || model === 'sonar-deep-research';
+  // Only treat explicit sonar variants as Perplexity models. Do not treat arbitrary
+  // `perplexity/*` IDs as Perplexity models to avoid unintended fallbacks.
+  return (
+    model === 'perplexity/sonar' ||
+    model === 'perplexity/sonar-deep-research' ||
+    model === 'sonar' ||
+    model === 'sonar-deep-research'
+  );
+}
+
+// Lightweight, non-verifying JWT payload decoder to extract the email claim.
+// This does NOT validate the token signature; it only reads the payload.
+function decodeJwtPayload(token: string) {
+  try {
+    const parts = token.split('.');
+    if (parts.length < 2) return null;
+    const payload = parts[1];
+    // base64url -> base64
+    const b64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    // atob works in Deno runtime
+    const json = decodeURIComponent(Array.prototype.map.call(atob(b64), (c: string) => {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(json);
+  } catch (e) {
+    console.warn('Failed to decode JWT payload', e);
+    return null;
+  }
 }
 
 // Map Perplexity model IDs to API model names
 function getPerplexityModelName(model: string): string {
   if (model === 'perplexity/sonar' || model === 'sonar') return 'sonar';
   if (model === 'perplexity/sonar-deep-research' || model === 'sonar-deep-research') return 'sonar-deep-research';
-  // Strip perplexity/ prefix if present
-  return model.replace('perplexity/', '');
+  // If it's not one of the supported Perplexity models, return the input unchanged.
+  // We intentionally avoid a generic `perplexity/*` fallback to `sonar`.
+  return model;
 }
 
 Deno.serve(async (req) => {
@@ -140,6 +168,30 @@ Deno.serve(async (req) => {
 
     // Route Perplexity models directly to Perplexity API
     if (isPerplexityModel(mappedModel)) {
+      // Enforce admin-only access for Perplexity models.
+      const authHeader = req.headers.get('authorization') || req.headers.get('Authorization') || '';
+      const adminEmail = 'go41@naver.com';
+
+      if (!authHeader.startsWith('Bearer ')) {
+        console.error('Perplexity access denied: missing bearer token');
+        return new Response(JSON.stringify({ error: 'Perplexity models are restricted to admin users' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const token = authHeader.slice(7);
+      const payload = decodeJwtPayload(token);
+      const userEmail = payload?.email;
+
+      if (userEmail !== adminEmail) {
+        console.error('Perplexity access denied for', userEmail);
+        return new Response(JSON.stringify({ error: 'Perplexity models are restricted to admin users' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       const perplexityKey = Deno.env.get('PERPLEXITY_API_KEY');
       if (!perplexityKey) {
         console.error('PERPLEXITY_API_KEY not configured');

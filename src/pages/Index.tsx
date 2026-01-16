@@ -62,6 +62,21 @@ const Index = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Ensure Perplexity models are not selected/visible for non-admin users
+  useEffect(() => {
+    if (!isAdmin) {
+      const selected = getModelById(selectedModel);
+      if (selected && selected.provider === 'perplexity') {
+        setSelectedModel('google/gemini-2.0-flash-exp:free');
+      }
+
+      setSynthesisModelIds(prev => prev.filter(id => {
+        const m = getModelById(id);
+        return m ? m.provider !== 'perplexity' : true;
+      }));
+    }
+  }, [isAdmin]);
+
   const syncProfile = async (user: any) => {
     try {
       const isSystemAdmin = user.email === ADMIN_EMAIL;

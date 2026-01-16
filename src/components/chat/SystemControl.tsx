@@ -53,8 +53,10 @@ export const SystemControl = ({
         onOpenChange(false);
     };
 
-    const freeModels = MODELS.filter(m => m.inputPrice === 0);
-    const premiumModels = MODELS.filter(m => m.inputPrice > 0);
+    // Hide Perplexity models for non-admin users
+    const visibleModels = isAdmin ? MODELS : MODELS.filter(m => m.provider !== 'perplexity');
+    const freeModels = visibleModels.filter(m => m.inputPrice === 0);
+    const premiumModels = visibleModels.filter(m => m.inputPrice > 0);
 
     const getHealthIndicator = (modelId: string) => {
         const available = isModelAvailable(modelId);

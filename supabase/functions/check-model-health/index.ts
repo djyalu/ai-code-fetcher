@@ -35,12 +35,9 @@ const OPENROUTER_MODELS = [
   'deepseek-chat',
 ];
 
-// Perplexity models
+// Perplexity models - only keep officially supported sonar variants
 const PERPLEXITY_MODELS = [
   'sonar',
-  'sonar-pro',
-  'sonar-reasoning',
-  'sonar-reasoning-pro',
   'sonar-deep-research',
 ];
 
