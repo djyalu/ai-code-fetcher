@@ -124,25 +124,7 @@ function isPerplexityModel(model: string): boolean {
   );
 }
 
-// Lightweight, non-verifying JWT payload decoder to extract the email claim.
-// This does NOT validate the token signature; it only reads the payload.
-function decodeJwtPayload(token: string) {
-  try {
-    const parts = token.split('.');
-    if (parts.length < 2) return null;
-    const payload = parts[1];
-    // base64url -> base64
-    const b64 = payload.replace(/-/g, '+').replace(/_/g, '/');
-    // atob works in Deno runtime
-    const json = decodeURIComponent(Array.prototype.map.call(atob(b64), (c: string) => {
-      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-    }).join(''));
-    return JSON.parse(json);
-  } catch (e) {
-    console.warn('Failed to decode JWT payload', e);
-    return null;
-  }
-}
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 // Map Perplexity model IDs to API model names
 function getPerplexityModelName(model: string): string {
@@ -181,11 +163,21 @@ Deno.serve(async (req) => {
       }
 
       const token = authHeader.slice(7);
-      const payload = decodeJwtPayload(token);
-      const userEmail = payload?.email;
 
-      if (userEmail !== adminEmail) {
-        console.error('Perplexity access denied for', userEmail);
+      // Verify the token server-side using Supabase service role key to prevent spoofing.
+      const supabaseUrl = Deno.env.get('SUPABASE_URL');
+      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+      if (!supabaseUrl || !supabaseServiceKey) {
+        console.error('Supabase service role key not configured');
+        throw new Error('Server misconfiguration: SUPABASE_SERVICE_ROLE_KEY missing');
+      }
+
+      const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+      const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+      const userEmail = userData?.user?.email;
+
+      if (userError || !userEmail || userEmail !== adminEmail) {
+        console.error('Perplexity access denied for', userEmail, userError?.message);
         return new Response(JSON.stringify({ error: 'Perplexity models are restricted to admin users' }), {
           status: 403,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
