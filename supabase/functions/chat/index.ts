@@ -21,7 +21,7 @@ const MODEL_MAP: Record<string, string> = {
   'gpt-4o-mini': 'openai/gpt-4o-mini',
   'claude-3-5-sonnet': 'anthropic/claude-3.5-sonnet',
   'claude-3-5-haiku': 'anthropic/claude-3.5-haiku',
-  'gemini-2.0-flash': 'google/gemini-2.0-flash-exp:free',
+  'gemini-2.0-flash': 'google/gemini-2.0-flash',
   'gemini-1.5-pro': 'google/gemini-pro-1.5',
   'deepseek-chat': 'deepseek/deepseek-chat',
 
@@ -124,6 +124,19 @@ function isPerplexityModel(model: string): boolean {
   );
 }
 
+// Models treated as paid (must be logged-in users)
+const PAID_MODELS = new Set([
+  'gpt-4o',
+  'gpt-4o-mini',
+  'claude-3-5-sonnet',
+  'claude-3-5-haiku',
+  'gemini-2.0-flash',
+  'gemini-1.5-pro',
+  'deepseek-chat',
+  'perplexity/sonar',
+  'perplexity/sonar-deep-research',
+]);
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 // Map Perplexity model IDs to API model names
@@ -147,6 +160,42 @@ Deno.serve(async (req) => {
 
     const mappedModel = MODEL_MAP[model] || model;
     console.log(`Mapped model: ${mappedModel}`);
+
+    // If this is a paid model (based on our PAID_MODELS set), require authentication
+    if (PAID_MODELS.has(model) || PAID_MODELS.has(mappedModel)) {
+      const authHeader = req.headers.get('authorization') || req.headers.get('Authorization') || '';
+      if (!authHeader.startsWith('Bearer ')) {
+        console.warn('Paid model access denied: missing bearer token');
+        return new Response(JSON.stringify({ error: 'Paid models require an authenticated user' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const token = authHeader.slice(7);
+      const supabaseUrl = Deno.env.get('SUPABASE_URL');
+      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+      if (!supabaseUrl || !supabaseServiceKey) {
+        console.error('Supabase service role key not configured');
+        throw new Error('Server misconfiguration: SUPABASE_SERVICE_ROLE_KEY missing');
+      }
+
+      const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+      const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+      const userId = userData?.user?.id;
+      const userEmail = userData?.user?.email || null;
+
+      if (userError || !userId) {
+        console.warn('Paid model access denied: invalid token', userError?.message);
+        return new Response(JSON.stringify({ error: 'Paid models require an authenticated user' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Attach user info to the request context via a small object we can use later for logging
+      (req as any).__user = { id: userId, email: userEmail };
+    }
 
     // Route Perplexity models directly to Perplexity API
     if (isPerplexityModel(mappedModel)) {
@@ -230,6 +279,24 @@ Deno.serve(async (req) => {
 
       const data = await response.json();
       console.log('Perplexity chat completion successful');
+      // Try to log prompt/result to prompt_logs (best-effort)
+      try {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL');
+        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+        if (supabaseUrl && supabaseServiceKey) {
+          const admin = createClient(supabaseUrl, supabaseServiceKey);
+          const userEmail = (req as any).__user?.email || userData?.user?.email || null;
+          const promptText = messages.filter(m => m.role === 'user').map(m => m.content).join('\n');
+          await admin.from('prompt_logs').insert({
+            prompt: promptText,
+            result: data.choices?.[0]?.message?.content || '',
+            model_id: `perplexity/${perplexityModelName}`,
+            owner_email: userEmail,
+          } as any);
+        }
+      } catch (e) {
+        console.warn('Prompt logging failed for Perplexity (non-fatal):', e?.message || e);
+      }
 
       return new Response(JSON.stringify({
         content: data.choices?.[0]?.message?.content || '',
@@ -322,6 +389,24 @@ Deno.serve(async (req) => {
 
       const data = await response.json();
       console.log('Chat completion successful');
+      // Best-effort: log prompt and result to prompt_logs
+      try {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL');
+        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+        if (supabaseUrl && supabaseServiceKey) {
+          const admin = createClient(supabaseUrl, supabaseServiceKey);
+          const userEmail = (req as any).__user?.email || null;
+          const promptText = messages.filter(m => m.role === 'user').map(m => m.content).join('\n');
+          await admin.from('prompt_logs').insert({
+            prompt: promptText,
+            result: data.choices?.[0]?.message?.content || '',
+            model_id: mappedModel,
+            owner_email: userEmail,
+          } as any);
+        }
+      } catch (e) {
+        console.warn('Prompt logging failed (non-fatal):', e?.message || e);
+      }
 
       return new Response(JSON.stringify({
         content: data.choices?.[0]?.message?.content || '',
