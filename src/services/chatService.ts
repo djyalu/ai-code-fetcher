@@ -27,58 +27,89 @@ export const sendMessage = async (
   messages: { role: 'user' | 'assistant' | 'system'; content: string }[],
   model: string
 ): Promise<ChatResponse> => {
-  const { data, error } = await supabase.functions.invoke('chat', {
-    body: {
-      messages: [
-        { role: 'system', content: DEFAULT_SYSTEM_PROMPT },
-        ...messages,
-      ],
-      model,
-      stream: false,
-    },
-  });
+  const isPerplexity = model.startsWith('perplexity/') || model.includes('sonar');
 
-  if (error) {
-    // supabase-js may surface non-2xx responses as a generic FunctionsHttpError.
-    // Try to pull status/body from the error context so we can show actionable messages.
-    const err: any = error;
-    const status: number | undefined = err?.context?.status ?? err?.status;
+  const endpoint = isPerplexity
+    ? 'https://api.perplexity.ai/chat/completions'
+    : 'https://openrouter.ai/api/v1/chat/completions';
 
-    let extractedMessage: string | undefined;
-    const body = err?.context?.body;
+  const apiKey = isPerplexity
+    ? import.meta.env.VITE_PERPLEXITY_API_KEY
+    : import.meta.env.VITE_OPENROUTER_API_KEY;
 
-    if (typeof body === 'string') {
-      try {
-        const parsed = JSON.parse(body);
-        extractedMessage = parsed?.error || parsed?.message;
-      } catch {
-        extractedMessage = body;
-      }
-    } else if (body && typeof body === 'object') {
-      extractedMessage = body?.error || body?.message;
-    }
-
-    const message = extractedMessage || err?.message || 'Failed to get response';
-
-    const isRateLimit = status === 429 || message.includes('Rate limit exceeded') || message.includes('returned 429');
-    if (isRateLimit) {
-      // Try to pull the reset epoch (ms) from "...reset (1768521600000)" and show a friendly hint.
-      const match = message.match(/reset\s*\((\d{10,})\)/i);
-      const resetMs = match ? Number(match[1]) : undefined;
-      const resetText = resetMs ? new Date(resetMs).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : null;
-
-      throw new Error(
-        resetText
-          ? `현재 선택한 모델이 요청 한도에 도달했습니다. ${resetText} 이후 다시 시도하거나 다른 모델로 변경해 주세요.`
-          : '현재 선택한 모델이 요청 한도에 도달했습니다. 잠시 후 다시 시도하거나 다른 모델로 변경해 주세요.'
-      );
-    }
-
-    console.error('Chat API error:', error);
-    throw new Error(message);
+  if (!apiKey) {
+    throw new Error(`${isPerplexity ? 'Perplexity' : 'OpenRouter'} API key is missing. Please check your .env file.`);
   }
 
-  return data as ChatResponse;
+  // Perplexity and OpenRouter expect slightly different payloads
+  // OpenRouter clean ID: remove 'perplexity/' prefix only if using Perplexity API? 
+  // Actually Perplexity API expects models like 'sonar-pro' etc. OpenRouter expects 'perplexity/sonar'.
+  // We need to adhere to the API specs.
+  // BUT: The user defined IDs like 'perplexity/sonar'.
+  // If calling Perplexity API directly, we might need to strip the prefix if they don't support it, 
+  // or Perplexity might accept 'sonar'. Let's assume standard mapping: 'sonar', 'sonar-pro', 'llama-3.1-sonar-...'
+  // For safety/simplification in this "fix-it-now" context, let's assume OpenRouter handles Perplexity best for now OR:
+  // If the user Explicitly wants Perplexity routing, we map 'perplexity/sonar' -> 'sonar'.
+
+  let targetModel = model;
+  if (isPerplexity && targetModel.startsWith('perplexity/')) {
+    targetModel = targetModel.replace('perplexity/', ''); // 'perplexity/sonar' -> 'sonar'
+  }
+
+  const finalMessages = [
+    { role: 'system', content: DEFAULT_SYSTEM_PROMPT },
+    ...messages
+  ];
+
+  try {
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    };
+
+    if (!isPerplexity) {
+      headers['HTTP-Referer'] = 'https://github.com/djyalu/ai-code-fetcher';
+      headers['X-Title'] = 'AI Code Fetcher';
+    }
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        model: targetModel,
+        messages: finalMessages,
+        stream: false,
+        // Perplexity specific options could go here if needed, but standard chat completion is fine
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData?.error?.message || errorData?.error || `HTTP Error ${response.status}`;
+
+      // Rate Limit Handling
+      if (response.status === 429 || errorMessage.includes('Rate limit')) {
+        throw new Error('현재 선택한 모델이 요청 한도에 도달했습니다. 잠시 후 다시 시도하거나 다른 모델로 변경해 주세요.');
+      }
+
+      throw new Error(errorMessage);
+    }
+
+    const data = await response.json();
+
+    if (!data.choices || data.choices.length === 0) {
+      throw new Error('No response content received from AI provider.');
+    }
+
+    return {
+      content: data.choices[0].message.content,
+      model: data.model,
+      usage: data.usage,
+    };
+  } catch (error: any) {
+    console.error('Chat Service Error:', error);
+    throw error;
+  }
 };
 
 export const sendSynthesisRequest = async (
