@@ -41,19 +41,16 @@ export const sendMessage = async (
     throw new Error(`${isPerplexity ? 'Perplexity' : 'OpenRouter'} API key is missing. Please check your .env file.`);
   }
 
-  // Perplexity and OpenRouter expect slightly different payloads
-  // OpenRouter clean ID: remove 'perplexity/' prefix only if using Perplexity API? 
-  // Actually Perplexity API expects models like 'sonar-pro' etc. OpenRouter expects 'perplexity/sonar'.
-  // We need to adhere to the API specs.
-  // BUT: The user defined IDs like 'perplexity/sonar'.
-  // If calling Perplexity API directly, we might need to strip the prefix if they don't support it, 
-  // or Perplexity might accept 'sonar'. Let's assume standard mapping: 'sonar', 'sonar-pro', 'llama-3.1-sonar-...'
-  // For safety/simplification in this "fix-it-now" context, let's assume OpenRouter handles Perplexity best for now OR:
-  // If the user Explicitly wants Perplexity routing, we map 'perplexity/sonar' -> 'sonar'.
+  // STRICT RULE: Perplexity models must NEVER be routed to OpenRouter.
+  // There is no fallback for Perplexity models to OpenRouter.
+  if (isPerplexity && endpoint.includes('openrouter.ai')) {
+    throw new Error('Security Error: Attempted to route Perplexity model to OpenRouter. Aborting.');
+  }
 
+  // Perplexity API requires model ID modification (strip prefix if stored as perplexity/sonar)
   let targetModel = model;
   if (isPerplexity && targetModel.startsWith('perplexity/')) {
-    targetModel = targetModel.replace('perplexity/', ''); // 'perplexity/sonar' -> 'sonar'
+    targetModel = targetModel.replace('perplexity/', '');
   }
 
   const finalMessages = [
@@ -67,6 +64,7 @@ export const sendMessage = async (
       'Content-Type': 'application/json',
     };
 
+    // Only add custom headers for OpenRouter (Perplexity might reject unknown headers)
     if (!isPerplexity) {
       headers['HTTP-Referer'] = 'https://github.com/djyalu/ai-code-fetcher';
       headers['X-Title'] = 'AI Code Fetcher';
