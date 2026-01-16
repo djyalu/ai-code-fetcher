@@ -15,10 +15,11 @@ interface ModelCheckResult {
 }
 
 // Models to check - OpenRouter models
+// Keep this list in sync with src/constants/models.ts (non-Perplexity models)
 const OPENROUTER_MODELS = [
   // Free models
   'google/gemini-2.0-flash-exp:free',
-  'nvidia/llama-3.1-nemotron-70b-instruct:free',
+  'nvidia/nemotron-3-nano-30b-a3b:free',
   'qwen/qwen-2.5-72b-instruct:free',
   'mistralai/mistral-small-3.1-24b-instruct:free',
   'deepseek/deepseek-chat-v3-0324:free',
