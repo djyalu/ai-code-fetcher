@@ -6,7 +6,7 @@ const FREE_SYNTHESIS_MODEL = 'qwen/qwen-2.5-72b-instruct:free';
 const PREMIUM_SYNTHESIS_MODEL = 'gemini-2.0-flash';
 
 // 유료 모델 포함 여부 확인
-const hasPremiumModel = (modelIds: string[]): boolean => {
+export const hasPremiumModel = (modelIds: string[]): boolean => {
   return modelIds.some(id => {
     const model = getModelById(id);
     return model && (model.inputPrice > 0 || model.outputPrice > 0);
