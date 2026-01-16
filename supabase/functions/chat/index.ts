@@ -124,18 +124,26 @@ function isPerplexityModel(model: string): boolean {
   );
 }
 
-// Models treated as paid (must be logged-in users)
-const PAID_MODELS = new Set([
-  'gpt-4o',
-  'gpt-4o-mini',
-  'claude-3-5-sonnet',
-  'claude-3-5-haiku',
-  'gemini-2.0-flash',
-  'gemini-1.5-pro',
-  'deepseek-chat',
-  'perplexity/sonar',
-  'perplexity/sonar-deep-research',
-]);
+// PAID models are stored in the database (public.model_metadata)
+// We'll keep a short-lived in-memory cache to avoid a DB hit on every request.
+const PAID_MODELS_CACHE_TTL_MS = 60 * 1000; // 1 minute
+let paidModelsCache: Set<string> = new Set();
+let paidModelsCacheFetchedAt = 0;
+
+async function refreshPaidModelsCache(supabaseAdmin: any) {
+  try {
+    const { data, error } = await supabaseAdmin.from('model_metadata').select('model_id').eq('is_paid', true);
+    if (!error && Array.isArray(data)) {
+      paidModelsCache = new Set(data.map((r: any) => r.model_id));
+      paidModelsCacheFetchedAt = Date.now();
+      console.log('Paid models cache refreshed:', Array.from(paidModelsCache));
+    } else if (error) {
+      console.warn('Failed to refresh paid models cache:', error.message || error);
+    }
+  } catch (e) {
+    console.warn('Error refreshing paid models cache:', e?.message || e);
+  }
+}
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -162,7 +170,7 @@ Deno.serve(async (req) => {
     console.log(`Mapped model: ${mappedModel}`);
 
     // If this is a paid model (based on our PAID_MODELS set), require authentication
-    if (PAID_MODELS.has(model) || PAID_MODELS.has(mappedModel)) {
+    if (paidModelsCache.has(model) || paidModelsCache.has(mappedModel)) {
       const authHeader = req.headers.get('authorization') || req.headers.get('Authorization') || '';
       if (!authHeader.startsWith('Bearer ')) {
         console.warn('Paid model access denied: missing bearer token');
