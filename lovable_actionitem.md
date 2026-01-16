@@ -25,6 +25,9 @@
 파일:
 - `supabase/migrations/20260116000000_create_model_metadata.sql`
 
+Seed file added:
+- `supabase/migrations/20260116000100_seed_model_metadata.sql` — 기본 유료/무료 모델 레코드를 upsert 하는 seed. 운영에서 검토 후 실행하세요.
+
 예시 절차 (lovable에서 제공하는 방법/UI를 사용하세요):
 1. Supabase Dashboard > SQL Editor에서 파일 내용을 실행하거나
 2. CI/CD에서 supabase migration 명령을 실행
