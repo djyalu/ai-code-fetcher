@@ -21,7 +21,7 @@ const MODEL_MAP: Record<string, string> = {
   'gpt-4o-mini': 'openai/gpt-4o-mini',
   'claude-3-5-sonnet': 'anthropic/claude-3.5-sonnet',
   'claude-3-5-haiku': 'anthropic/claude-3.5-haiku',
-  'gemini-2.0-flash': 'google/gemini-2.0-flash',
+  'gemini-2.0-flash': 'google/gemini-flash-2.0',
   'gemini-1.5-pro': 'google/gemini-pro-1.5',
   'deepseek-chat': 'deepseek/deepseek-v3',
 
