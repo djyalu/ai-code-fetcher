@@ -65,7 +65,7 @@ export const MODELS: AIModel[] = [
     id: 'deepseek-chat',
     name: 'DeepSeek V3',
     provider: 'deepseek',
-    description: '중국의 강력한 오픈소스 모델',
+    description: '중국의 강력한 오픈소스 추론 모델',
     inputPrice: 0.14,
     outputPrice: 0.28,
     contextWindow: 64000,
@@ -93,7 +93,7 @@ export const MODELS: AIModel[] = [
     color: '#0668E1',
   },
   {
-    id: 'deepseek/deepseek-r1-0528:free',
+    id: 'deepseek/deepseek-r1:free',
     name: 'DeepSeek R1 (Free)',
     provider: 'deepseek',
     description: 'DeepSeek의 최신 추론 모델. R1 아키텍처를 적용하여 논리적 사고 능력이 강화되었습니다.',

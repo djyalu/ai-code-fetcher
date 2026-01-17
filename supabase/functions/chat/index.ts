@@ -23,13 +23,13 @@ const MODEL_MAP: Record<string, string> = {
   'claude-3-5-haiku': 'anthropic/claude-3.5-haiku',
   'gemini-2.0-flash': 'google/gemini-2.0-flash',
   'gemini-1.5-pro': 'google/gemini-pro-1.5',
-  'deepseek-chat': 'deepseek/deepseek-chat',
+  'deepseek-chat': 'deepseek/deepseek-v3',
 
   // Free models - using correct OpenRouter IDs
   'google/gemini-2.0-flash-exp:free': 'google/gemini-2.0-flash-exp:free',
   'nvidia/nemotron-3-nano-30b-a3b:free': 'nvidia/nemotron-3-nano-30b-a3b:free',
   'mistralai/mistral-small-3.1-24b-instruct:free': 'mistralai/mistral-small-3.1-24b-instruct:free',
-  'deepseek/deepseek-chat-v3-0324:free': 'deepseek/deepseek-chat',
+  'deepseek/deepseek-r1-0528:free': 'deepseek/deepseek-r1:free',
   'google/gemma-3-27b-it:free': 'google/gemma-3-27b-it:free',
   'meta-llama/llama-3.3-70b-instruct:free': 'meta-llama/llama-3.3-70b-instruct:free',
   'microsoft/phi-4:free': 'microsoft/phi-4:free',
