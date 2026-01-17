@@ -28,15 +28,11 @@ const MODEL_MAP: Record<string, string> = {
   // Free models - using correct OpenRouter IDs
   'google/gemini-2.0-flash-exp:free': 'google/gemini-2.0-flash-exp:free',
   'nvidia/nemotron-3-nano-30b-a3b:free': 'nvidia/nemotron-3-nano-30b-a3b:free',
-  'qwen/qwen-2.5-72b-instruct:free': 'qwen/qwen-2.5-72b-instruct:free',
   'mistralai/mistral-small-3.1-24b-instruct:free': 'mistralai/mistral-small-3.1-24b-instruct:free',
   'deepseek/deepseek-chat-v3-0324:free': 'deepseek/deepseek-chat',
   'google/gemma-3-27b-it:free': 'google/gemma-3-27b-it:free',
   'meta-llama/llama-3.3-70b-instruct:free': 'meta-llama/llama-3.3-70b-instruct:free',
   'microsoft/phi-4:free': 'microsoft/phi-4:free',
-
-  'perplexity/sonar': 'perplexity/sonar',
-  'perplexity/sonar-deep-research': 'perplexity/sonar-deep-research',
 };
 
 function sanitizeMessagesForModel(model: string, messages: ChatMessage[]): ChatMessage[] {

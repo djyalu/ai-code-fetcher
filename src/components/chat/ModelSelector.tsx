@@ -34,7 +34,6 @@ const getProviderColor = (provider: string) => {
     case 'mistral': return 'bg-indigo-500';
     case 'meta': return 'bg-blue-600';
     case 'arcee': return 'bg-purple-500';
-    case 'qwen': return 'bg-indigo-400';
     default: return 'bg-zinc-500';
   }
 };

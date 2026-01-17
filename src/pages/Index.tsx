@@ -18,7 +18,7 @@ const ADMIN_EMAIL = 'go41@naver.com';
 
 const Index = () => {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [selectedModel, setSelectedModel] = useState('qwen/qwen-2.5-72b-instruct:free'); // Default to a stable free model
+  const [selectedModel, setSelectedModel] = useState('google/gemma-3-27b-it:free'); // Default to a stable free model
   const [synthesisMode, setSynthesisMode] = useState(false);
   const [synthesisModelIds, setSynthesisModelIds] = useState<string[]>(SYNTHESIS_MODELS);
   const [isSystemControlOpen, setIsSystemControlOpen] = useState(false);
@@ -55,7 +55,7 @@ const Index = () => {
       if (session?.user) syncProfile(session.user);
       // If user logs out, and current selected model is premium, switch to free
       if (!session) {
-        setSelectedModel(prev => isPremiumModel(prev) ? 'qwen/qwen-2.5-72b-instruct:free' : prev);
+        setSelectedModel(prev => isPremiumModel(prev) ? 'google/gemma-3-27b-it:free' : prev);
         setSynthesisModelIds(prev => prev.filter(id => !isPremiumModel(id)));
       }
     });
