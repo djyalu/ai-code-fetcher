@@ -30,12 +30,11 @@ const getProviderColor = (provider: string) => {
     case 'anthropic': return 'bg-anthropic';
     case 'google': return 'bg-google';
     case 'deepseek': return 'bg-deepseek';
-    case 'perplexity': return 'bg-teal-500';
-    case 'xiaomi': return 'bg-orange-500';
     case 'nvidia': return 'bg-green-500';
     case 'mistral': return 'bg-indigo-500';
     case 'meta': return 'bg-blue-600';
     case 'arcee': return 'bg-purple-500';
+    case 'qwen': return 'bg-indigo-400';
     default: return 'bg-zinc-500';
   }
 };
@@ -53,8 +52,7 @@ export const ModelSelector = ({
 }: ModelSelectorProps) => {
   const currentModel = MODELS.find(m => m.id === selectedModel) || MODELS[0];
 
-  // Hide Perplexity models from non-admin users (admin email is handled by parent)
-  const visibleModels = isAdmin ? MODELS : MODELS.filter(m => m.provider !== 'perplexity');
+  const visibleModels = MODELS;
 
   const freeModels = visibleModels.filter(m => m.inputPrice === 0);
   const premiumModels = visibleModels.filter(m => m.inputPrice > 0);
