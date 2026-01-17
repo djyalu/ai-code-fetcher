@@ -63,20 +63,6 @@ const Index = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Ensure Perplexity models are not selected/visible for non-admin users
-  useEffect(() => {
-    if (!isAdmin) {
-      const selected = getModelById(selectedModel);
-      if (selected && selected.provider === 'perplexity') {
-        setSelectedModel('qwen/qwen-2.5-72b-instruct:free');
-      }
-
-      setSynthesisModelIds(prev => prev.filter(id => {
-        const m = getModelById(id);
-        return m ? m.provider !== 'perplexity' : true;
-      }));
-    }
-  }, [isAdmin]);
 
   const syncProfile = async (user: any) => {
     try {
