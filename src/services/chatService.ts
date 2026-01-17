@@ -1,6 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-// Chat Service: Handles interactions with OpenRouter and Perplexity APIs
-import { DEFAULT_SYSTEM_PROMPT, SYNTHESIS_PROMPT, SYNTHESIS_MODELS, getModelById } from '@/constants/models';
+import { SYNTHESIS_PROMPT, SYNTHESIS_MODELS, getModelById } from '@/constants/models';
 
 // Synthesis 합성 모델 상수
 const FREE_SYNTHESIS_MODEL = 'qwen/qwen-2.5-72b-instruct:free';
@@ -28,84 +27,35 @@ export const sendMessage = async (
   messages: { role: 'user' | 'assistant' | 'system'; content: string }[],
   model: string
 ): Promise<ChatResponse> => {
-  const isPerplexity = model.startsWith('perplexity/') || model.includes('sonar');
-
-  const endpoint = isPerplexity
-    ? 'https://api.perplexity.ai/chat/completions'
-    : 'https://openrouter.ai/api/v1/chat/completions';
-
-  // Try to retrieve keys from various potential sources (Vite standard, or direct env injection)
-  const openRouterKey = import.meta.env.VITE_OPENROUTER_API_KEY || import.meta.env.OPENROUTER_API_KEY;
-  const perplexityKey = import.meta.env.VITE_PERPLEXITY_API_KEY || import.meta.env.PERPLEXITY_API_KEY;
-
-  const apiKey = isPerplexity ? perplexityKey : openRouterKey;
-
-  if (!apiKey) {
-    console.warn(`${isPerplexity ? 'Perplexity' : 'OpenRouter'} API key is missing in environment variables. Request might fail.`);
-    // We will attempt the request anyway, as some platforms might inject auth headers via proxy.
-  }
-
-  // STRICT RULE: Perplexity models must NEVER be routed to OpenRouter.
-  // There is no fallback for Perplexity models to OpenRouter.
-  if (isPerplexity && endpoint.includes('openrouter.ai')) {
-    throw new Error('Security Error: Attempted to route Perplexity model to OpenRouter. Aborting.');
-  }
-
-  // Perplexity API requires model ID modification (strip prefix if stored as perplexity/sonar)
-  let targetModel = model;
-  if (isPerplexity && targetModel.startsWith('perplexity/')) {
-    targetModel = targetModel.replace('perplexity/', '');
-  }
-
-  const finalMessages = [
-    { role: 'system', content: DEFAULT_SYSTEM_PROMPT },
-    ...messages
-  ];
-
   try {
-    const headers: Record<string, string> = {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    };
-
-    // Only add custom headers for OpenRouter (Perplexity might reject unknown headers)
-    if (!isPerplexity) {
-      headers['HTTP-Referer'] = 'https://github.com/djyalu/ai-code-fetcher';
-      headers['X-Title'] = 'AI Code Fetcher';
-    }
-
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        model: targetModel,
-        messages: finalMessages,
+    const { data, error } = await supabase.functions.invoke('chat', {
+      body: {
+        messages,
+        model,
         stream: false,
-        // Perplexity specific options could go here if needed, but standard chat completion is fine
-      }),
+      },
     });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage = errorData?.error?.message || errorData?.error || `HTTP Error ${response.status}`;
-
-      // Rate Limit Handling
-      if (response.status === 429 || errorMessage.includes('Rate limit')) {
+    if (error) {
+      const errorMessage = error.message || 'Edge Function 호출 실패';
+      
+      if (errorMessage.includes('429') || errorMessage.includes('Rate limit')) {
         throw new Error('현재 선택한 모델이 요청 한도에 도달했습니다. 잠시 후 다시 시도하거나 다른 모델로 변경해 주세요.');
       }
-
+      
       throw new Error(errorMessage);
     }
 
-    const data = await response.json();
-
-    if (!data.choices || data.choices.length === 0) {
-      throw new Error('No response content received from AI provider.');
+    if (data?.error) {
+      if (data.error.includes('429') || data.error.includes('Rate limit')) {
+        throw new Error('현재 선택한 모델이 요청 한도에 도달했습니다. 잠시 후 다시 시도하거나 다른 모델로 변경해 주세요.');
+      }
+      throw new Error(data.error);
     }
 
     return {
-      content: data.choices[0].message.content,
-      model: data.model,
+      content: data.content || data.choices?.[0]?.message?.content || '',
+      model: data.model || model,
       usage: data.usage,
     };
   } catch (error: any) {
