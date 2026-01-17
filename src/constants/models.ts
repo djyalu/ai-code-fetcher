@@ -73,16 +73,6 @@ export const MODELS: AIModel[] = [
   },
   // Free Research Models
   {
-    id: 'qwen/qwen-2.5-72b-instruct:free',
-    name: 'Qwen 2.5 72B (Free)',
-    provider: 'qwen',
-    description: '알리바바의 최신 오픈소스 모델. 다국어 지원과 코딩 능력이 뛰어납니다.',
-    inputPrice: 0,
-    outputPrice: 0,
-    contextWindow: 131072,
-    color: '#6366f1',
-  },
-  {
     id: 'google/gemini-2.0-flash-exp:free',
     name: 'Gemini 2.0 Flash (Free)',
     provider: 'google',
@@ -184,7 +174,7 @@ export const MODELS: AIModel[] = [
   },
 ];
 
-export const SYNTHESIS_MODELS = ['google/gemini-2.0-flash-exp:free', 'qwen/qwen-2.5-72b-instruct:free', 'meta-llama/llama-3.3-70b-instruct:free'];
+export const SYNTHESIS_MODELS = ['google/gemma-3-27b-it:free', 'google/gemini-2.0-flash-exp:free'];
 
 export const DEFAULT_SYSTEM_PROMPT = `You are a helpful AI assistant. Respond concisely and accurately.`;
 
