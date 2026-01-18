@@ -17,22 +17,28 @@ interface RequestBody {
 }
 
 const MODEL_MAP: Record<string, string> = {
-  'gpt-4o': 'openai/gpt-4o',
-  'gpt-4o-mini': 'openai/gpt-4o-mini',
+  // Premium - Frontier
+  'gpt-5.2': 'openai/gpt-5.2',
+  'gpt-5.2-codex': 'openai/gpt-5.2-codex',
   'claude-3-5-sonnet': 'anthropic/claude-3.5-sonnet',
-  'claude-3-5-haiku': 'anthropic/claude-3.5-haiku',
-  'gemini-2.0-flash': 'google/gemini-flash-2.0',
-  'gemini-1.5-pro': 'google/gemini-pro-1.5',
-  'deepseek-chat': 'deepseek/deepseek-v3',
+  'gemini-3-flash-preview': 'google/gemini-3-flash-preview',
+  'llama-4-maverick': 'meta-llama/llama-4-maverick',
 
-  // Free models - using correct OpenRouter IDs
+  // Premium - High Efficiency
+  'gpt-4o-mini': 'openai/gpt-4o-mini',
+  'deepseek-chat': 'deepseek/deepseek-chat',
+  'gemini-2.5-flash-lite': 'google/gemini-2.5-flash-lite-preview',
+  'claude-3-5-haiku': 'anthropic/claude-3.5-haiku',
+
+  // Free models
   'google/gemini-2.0-flash-exp:free': 'google/gemini-2.0-flash-exp:free',
-  'nvidia/nemotron-3-nano-30b-a3b:free': 'nvidia/nemotron-3-nano-30b-a3b:free',
-  'mistralai/mistral-small-3.1-24b-instruct:free': 'mistralai/mistral-small-3.1-24b-instruct:free',
-  'deepseek/deepseek-r1-0528:free': 'deepseek/deepseek-r1:free',
-  'google/gemma-3-27b-it:free': 'google/gemma-3-27b-it:free',
   'meta-llama/llama-3.3-70b-instruct:free': 'meta-llama/llama-3.3-70b-instruct:free',
-  'microsoft/phi-4:free': 'microsoft/phi-4:free',
+  'deepseek/deepseek-r1-0528:free': 'deepseek/deepseek-r1-0528:free',
+  'xiaomi/mimo-v2-flash:free': 'xiaomi/mimo-v2-flash:free',
+  'qwen/qwen3-coder:free': 'qwen/qwen3-coder:free',
+  'mistralai/devstral-2512:free': 'mistralai/devstral-2512:free',
+  'openai/gpt-oss-120b:free': 'openai/gpt-oss-120b:free',
+  'google/gemma-3-27b-it:free': 'google/gemma-3-27b-it:free',
 };
 
 function sanitizeMessagesForModel(model: string, messages: ChatMessage[]): ChatMessage[] {
