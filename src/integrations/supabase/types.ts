@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_models: {
+        Row: {
+          color: string
+          context_window: number
+          created_at: string
+          description: string | null
+          id: string
+          input_price: number
+          is_active: boolean
+          model_id: string
+          name: string
+          output_price: number
+          provider: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string
+          context_window?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          input_price?: number
+          is_active?: boolean
+          model_id: string
+          name: string
+          output_price?: number
+          provider: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string
+          context_window?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          input_price?: number
+          is_active?: boolean
+          model_id?: string
+          name?: string
+          output_price?: number
+          provider?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       model_health: {
         Row: {
           created_at: string
@@ -41,6 +86,57 @@ export type Database = {
           last_checked_at?: string
           model_id?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          role?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          role?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      prompt_logs: {
+        Row: {
+          created_at: string
+          id: string
+          model_id: string
+          owner_email: string
+          prompt: string
+          result: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          model_id: string
+          owner_email: string
+          prompt: string
+          result: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          model_id?: string
+          owner_email?: string
+          prompt?: string
+          result?: string
         }
         Relationships: []
       }
