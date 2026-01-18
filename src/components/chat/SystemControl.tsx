@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { MODELS } from "@/constants/models";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { X, Check, Users, Settings2, Lock, History, FileText } from "lucide-react";
+import { X, Check, Users, Settings2, Lock, History, Cpu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MemberManagement } from "@/components/admin/MemberManagement";
 import { PromptHistory } from "@/components/admin/PromptHistory";
+import { ModelManagement } from "@/components/admin/ModelManagement";
 import { Badge } from "@/components/ui/badge";
 import { useModelHealth } from "@/hooks/useModelHealth";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -29,6 +30,7 @@ export const SystemControl = ({
     const [localSelectedIds, setLocalSelectedIds] = useState<string[]>(selectedModelIds);
     const [isMemberManagementOpen, setIsMemberManagementOpen] = useState(false);
     const [isPromptHistoryOpen, setIsPromptHistoryOpen] = useState(false);
+    const [isModelManagementOpen, setIsModelManagementOpen] = useState(false);
     const { isModelAvailable, lastChecked } = useModelHealth();
 
     useEffect(() => {
@@ -38,7 +40,6 @@ export const SystemControl = ({
     }, [selectedModelIds, open]);
 
     const toggleModel = (modelId: string, isPremium: boolean) => {
-        // Block premium models for non-logged-in users
         if (isPremium && !isLoggedIn) return;
 
         setLocalSelectedIds(prev =>
@@ -83,18 +84,18 @@ export const SystemControl = ({
     return (
         <>
             <Dialog open={open} onOpenChange={onOpenChange}>
-                <DialogContent className="max-w-4xl h-[85vh] p-0 gap-0 bg-zinc-950 border-zinc-800">
+                <DialogContent className="max-w-4xl h-[85vh] p-0 gap-0 bg-card border-border">
                     <DialogTitle className="sr-only">Synthesis Model Configuration</DialogTitle>
 
                     {/* Header */}
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-border">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-zinc-900 flex items-center justify-center">
-                                <Settings2 className="w-5 h-5 text-zinc-400" />
+                            <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                                <Settings2 className="w-5 h-5 text-muted-foreground" />
                             </div>
                             <div>
-                                <h2 className="text-lg font-semibold text-white">Synthesis Configuration</h2>
-                                <p className="text-xs text-zinc-500">Select models for multi-engine synthesis</p>
+                                <h2 className="text-lg font-semibold text-foreground">Synthesis 설정</h2>
+                                <p className="text-xs text-muted-foreground">멀티 모델 합성에 사용할 모델 선택</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -103,20 +104,29 @@ export const SystemControl = ({
                                     <Button
                                         variant="ghost"
                                         size="sm"
+                                        onClick={() => setIsModelManagementOpen(true)}
+                                        className="gap-2 text-muted-foreground hover:text-foreground"
+                                    >
+                                        <Cpu className="w-4 h-4" />
+                                        모델
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
                                         onClick={() => setIsPromptHistoryOpen(true)}
-                                        className="gap-2 text-zinc-400 hover:text-white"
+                                        className="gap-2 text-muted-foreground hover:text-foreground"
                                     >
                                         <History className="w-4 h-4" />
-                                        History
+                                        히스토리
                                     </Button>
                                     <Button
                                         variant="ghost"
                                         size="sm"
                                         onClick={() => setIsMemberManagementOpen(true)}
-                                        className="gap-2 text-zinc-400 hover:text-white"
+                                        className="gap-2 text-muted-foreground hover:text-foreground"
                                     >
                                         <Users className="w-4 h-4" />
-                                        Members
+                                        회원
                                     </Button>
                                 </div>
                             )}
@@ -124,7 +134,7 @@ export const SystemControl = ({
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => onOpenChange(false)}
-                                className="text-zinc-400 hover:text-white"
+                                className="text-muted-foreground hover:text-foreground"
                             >
                                 <X className="w-5 h-5" />
                             </Button>
@@ -137,14 +147,14 @@ export const SystemControl = ({
                         {premiumModels.length > 0 && (
                             <div className="space-y-3">
                                 <div className="flex items-center gap-2">
-                                    <Badge variant="outline" className="border-indigo-500/30 text-indigo-400">
+                                    <Badge variant="default" className="bg-primary text-primary-foreground">
                                         Premium
                                     </Badge>
-                                    <span className="text-xs text-zinc-500">
-                                        {premiumModels.filter(m => localSelectedIds.includes(m.id)).length} / {premiumModels.length} selected
+                                    <span className="text-xs text-muted-foreground">
+                                        {premiumModels.filter(m => localSelectedIds.includes(m.id)).length} / {premiumModels.length} 선택됨
                                     </span>
                                     {!isLoggedIn && (
-                                        <span className="text-xs text-yellow-500 flex items-center gap-1">
+                                        <span className="text-xs text-amber-600 flex items-center gap-1">
                                             <Lock className="w-3 h-3" /> 로그인 필요
                                         </span>
                                     )}
@@ -162,8 +172,8 @@ export const SystemControl = ({
                                                     w-full text-left p-4 rounded-lg border transition-all
                                                     ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}
                                                     ${isSelected
-                                                        ? 'bg-zinc-900 border-zinc-700'
-                                                        : 'bg-zinc-950 border-zinc-800 hover:border-zinc-700'
+                                                        ? 'bg-primary/5 border-primary/30'
+                                                        : 'bg-card border-border hover:border-primary/20'
                                                     }
                                                 `}
                                             >
@@ -171,24 +181,24 @@ export const SystemControl = ({
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-center gap-2 mb-1">
                                                             {getHealthIndicator(model.id)}
-                                                            <h3 className="font-medium text-white">{model.name}</h3>
-                                                            <span className="text-xs text-zinc-500">
+                                                            <h3 className="font-medium text-foreground">{model.name}</h3>
+                                                            <span className="text-xs text-muted-foreground">
                                                                 ${model.inputPrice}/1M
                                                             </span>
-                                                            {isLocked && <Lock className="w-3 h-3 text-zinc-500" />}
+                                                            {isLocked && <Lock className="w-3 h-3 text-muted-foreground" />}
                                                         </div>
-                                                        <p className="text-xs text-zinc-500 truncate">
+                                                        <p className="text-xs text-muted-foreground truncate">
                                                             {model.description}
                                                         </p>
                                                     </div>
                                                     <div className={`
                                                         ml-4 w-5 h-5 rounded border-2 flex items-center justify-center shrink-0
                                                         ${isSelected
-                                                            ? 'bg-white border-white'
-                                                            : 'border-zinc-700'
+                                                            ? 'bg-primary border-primary'
+                                                            : 'border-border'
                                                         }
                                                     `}>
-                                                        {isSelected && <Check className="w-3 h-3 text-black" />}
+                                                        {isSelected && <Check className="w-3 h-3 text-primary-foreground" />}
                                                     </div>
                                                 </div>
                                             </button>
@@ -202,11 +212,11 @@ export const SystemControl = ({
                         {freeModels.length > 0 && (
                             <div className="space-y-3">
                                 <div className="flex items-center gap-2">
-                                    <Badge variant="outline" className="border-green-500/30 text-green-400">
+                                    <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-200">
                                         Free
                                     </Badge>
-                                    <span className="text-xs text-zinc-500">
-                                        {freeModels.filter(m => localSelectedIds.includes(m.id)).length} / {freeModels.length} selected
+                                    <span className="text-xs text-muted-foreground">
+                                        {freeModels.filter(m => localSelectedIds.includes(m.id)).length} / {freeModels.length} 선택됨
                                     </span>
                                 </div>
                                 <div className="grid gap-2">
@@ -219,8 +229,8 @@ export const SystemControl = ({
                                                 className={`
                                                     w-full text-left p-4 rounded-lg border transition-all
                                                     ${isSelected
-                                                        ? 'bg-zinc-900 border-zinc-700'
-                                                        : 'bg-zinc-950 border-zinc-800 hover:border-zinc-700'
+                                                        ? 'bg-green-50 border-green-200'
+                                                        : 'bg-card border-border hover:border-green-200'
                                                     }
                                                 `}
                                             >
@@ -228,23 +238,23 @@ export const SystemControl = ({
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-center gap-2 mb-1">
                                                             {getHealthIndicator(model.id)}
-                                                            <h3 className="font-medium text-white">{model.name}</h3>
-                                                            <span className="text-xs text-zinc-600">
+                                                            <h3 className="font-medium text-foreground">{model.name}</h3>
+                                                            <span className="text-xs text-muted-foreground">
                                                                 {(model.contextWindow / 1000).toFixed(0)}K ctx
                                                             </span>
                                                         </div>
-                                                        <p className="text-xs text-zinc-500 truncate">
+                                                        <p className="text-xs text-muted-foreground truncate">
                                                             {model.description}
                                                         </p>
                                                     </div>
                                                     <div className={`
                                                         ml-4 w-5 h-5 rounded border-2 flex items-center justify-center shrink-0
                                                         ${isSelected
-                                                            ? 'bg-white border-white'
-                                                            : 'border-zinc-700'
+                                                            ? 'bg-green-600 border-green-600'
+                                                            : 'border-border'
                                                         }
                                                     `}>
-                                                        {isSelected && <Check className="w-3 h-3 text-black" />}
+                                                        {isSelected && <Check className="w-3 h-3 text-white" />}
                                                     </div>
                                                 </div>
                                             </button>
@@ -256,15 +266,12 @@ export const SystemControl = ({
                     </div>
 
                     {/* Footer */}
-                    <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-800 bg-zinc-950">
-                        <span className="text-sm text-zinc-400">
-                            {localSelectedIds.length} model{localSelectedIds.length !== 1 ? 's' : ''} selected
+                    <div className="flex items-center justify-between px-6 py-4 border-t border-border bg-card">
+                        <span className="text-sm text-muted-foreground">
+                            {localSelectedIds.length}개 모델 선택됨
                         </span>
-                        <Button
-                            onClick={handleApply}
-                            className="bg-white text-black hover:bg-zinc-200"
-                        >
-                            Apply Changes
+                        <Button onClick={handleApply}>
+                            적용
                         </Button>
                     </div>
                 </DialogContent>
@@ -277,6 +284,10 @@ export const SystemControl = ({
             <PromptHistory
                 open={isPromptHistoryOpen}
                 onOpenChange={setIsPromptHistoryOpen}
+            />
+            <ModelManagement
+                open={isModelManagementOpen}
+                onOpenChange={setIsModelManagementOpen}
             />
         </>
     );
