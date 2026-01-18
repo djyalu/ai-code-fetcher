@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
-import { MODELS } from "@/constants/models";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { X, Check, Users, Settings2, Lock, History, FileText } from "lucide-react";
+import { X, Check, Users, Settings2, Lock, History, FileText, Database } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MemberManagement } from "@/components/admin/MemberManagement";
 import { PromptHistory } from "@/components/admin/PromptHistory";
+import { ModelManagement } from "@/components/admin/ModelManagement";
 import { Badge } from "@/components/ui/badge";
 import { useModelHealth } from "@/hooks/useModelHealth";
+import { useAIModels } from "@/hooks/useAIModels";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface SystemControlProps {
@@ -29,7 +30,9 @@ export const SystemControl = ({
     const [localSelectedIds, setLocalSelectedIds] = useState<string[]>(selectedModelIds);
     const [isMemberManagementOpen, setIsMemberManagementOpen] = useState(false);
     const [isPromptHistoryOpen, setIsPromptHistoryOpen] = useState(false);
+    const [isModelManagementOpen, setIsModelManagementOpen] = useState(false);
     const { isModelAvailable, lastChecked } = useModelHealth();
+    const { models } = useAIModels();
 
     useEffect(() => {
         if (open) {
@@ -39,7 +42,7 @@ export const SystemControl = ({
 
     const toggleModel = (modelId: string, isPremium: boolean) => {
         // Block premium models for non-logged-in users
-        if (isPremium && !isLoggedIn) return;
+        if (isPremium && !isLoggedIn && !isAdmin) return;
 
         setLocalSelectedIds(prev =>
             prev.includes(modelId)
@@ -53,8 +56,8 @@ export const SystemControl = ({
         onOpenChange(false);
     };
 
-    const freeModels = MODELS.filter(m => m.inputPrice === 0);
-    const premiumModels = MODELS.filter(m => m.inputPrice > 0);
+    const freeModels = models.filter(m => m.inputPrice === 0);
+    const premiumModels = models.filter(m => m.inputPrice > 0);
 
     const getHealthIndicator = (modelId: string) => {
         const available = isModelAvailable(modelId);
@@ -100,6 +103,15 @@ export const SystemControl = ({
                         <div className="flex items-center gap-2">
                             {isAdmin && (
                                 <div className="flex items-center gap-1 mr-2">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setIsModelManagementOpen(true)}
+                                        className="gap-2 text-zinc-400 hover:text-white"
+                                    >
+                                        <Database className="w-4 h-4" />
+                                        Models
+                                    </Button>
                                     <Button
                                         variant="ghost"
                                         size="sm"
@@ -273,6 +285,10 @@ export const SystemControl = ({
             <MemberManagement
                 open={isMemberManagementOpen}
                 onOpenChange={setIsMemberManagementOpen}
+            />
+            <ModelManagement
+                open={isModelManagementOpen}
+                onOpenChange={setIsModelManagementOpen}
             />
             <PromptHistory
                 open={isPromptHistoryOpen}

@@ -1,4 +1,3 @@
-import { MODELS } from '@/constants/models';
 import { AIModel } from '@/types/chat';
 import { Check, ChevronDown, Sparkles, Settings, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -11,6 +10,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useAIModels } from '@/hooks/useAIModels';
 
 interface ModelSelectorProps {
   selectedModel: string;
@@ -30,6 +30,8 @@ const getProviderColor = (provider: string) => {
     case 'anthropic': return 'bg-anthropic';
     case 'google': return 'bg-google';
     case 'deepseek': return 'bg-deepseek';
+    case 'perplexity': return 'bg-teal-500';
+    case 'xiaomi': return 'bg-orange-500';
     case 'nvidia': return 'bg-green-500';
     case 'mistral': return 'bg-indigo-500';
     case 'meta': return 'bg-blue-600';
@@ -49,9 +51,11 @@ export const ModelSelector = ({
   synthesisModelIds = [],
   onUpdateSynthesisModels,
 }: ModelSelectorProps) => {
-  const currentModel = MODELS.find(m => m.id === selectedModel) || MODELS[0];
+  const { models } = useAIModels();
+  const currentModel = models.find(m => m.id === selectedModel) || models[0] || { name: 'Loading...', provider: 'openai' } as AIModel;
 
-  const visibleModels = MODELS;
+  // Hide Perplexity models from non-admin users (admin email is handled by parent)
+  const visibleModels = isAdmin ? models : models.filter(m => m.provider !== 'perplexity');
 
   const freeModels = visibleModels.filter(m => m.inputPrice === 0);
   const premiumModels = visibleModels.filter(m => m.inputPrice > 0);
@@ -70,7 +74,7 @@ export const ModelSelector = ({
   };
 
   const renderModelItem = (model: AIModel) => {
-    const isLocked = model.inputPrice > 0 && !isLoggedIn;
+    const isLocked = model.inputPrice > 0 && !isLoggedIn && !isAdmin;
     const isSelected = synthesisMode
       ? synthesisModelIds.includes(model.id)
       : selectedModel === model.id;
