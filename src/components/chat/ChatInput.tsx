@@ -33,7 +33,7 @@ export const ChatInput = ({ onSend, isLoading, placeholder = '메시지를 입�
   };
 
   return (
-    <div className="glass-strong rounded-2xl p-2 shadow-lg">
+    <div className="bg-card border border-border rounded-2xl p-2 shadow-lg">
       <div className="flex items-end gap-2">
         <textarea
           ref={textareaRef}

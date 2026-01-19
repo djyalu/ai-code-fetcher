@@ -17,26 +17,28 @@ interface RequestBody {
 }
 
 const MODEL_MAP: Record<string, string> = {
-  'gpt-4o': 'openai/gpt-4o',
-  'gpt-4o-mini': 'openai/gpt-4o-mini',
+  // Premium - Frontier
+  'gpt-5.2': 'openai/gpt-5.2',
+  'gpt-5.2-codex': 'openai/gpt-5.2-codex',
   'claude-3-5-sonnet': 'anthropic/claude-3.5-sonnet',
-  'claude-3-5-haiku': 'anthropic/claude-3.5-haiku',
-  'gemini-2.0-flash': 'google/gemini-2.0-flash',
-  'gemini-1.5-pro': 'google/gemini-pro-1.5',
+  'gemini-3-flash-preview': 'google/gemini-3-flash-preview',
+  'llama-4-maverick': 'meta-llama/llama-4-maverick',
+
+  // Premium - High Efficiency
+  'gpt-4o-mini': 'openai/gpt-4o-mini',
   'deepseek-chat': 'deepseek/deepseek-chat',
+  'gemini-2.5-flash-lite': 'google/gemini-2.5-flash-lite-preview',
+  'claude-3-5-haiku': 'anthropic/claude-3.5-haiku',
 
-  // Free models - using correct OpenRouter IDs
+  // Free models
   'google/gemini-2.0-flash-exp:free': 'google/gemini-2.0-flash-exp:free',
-  'nvidia/nemotron-3-nano-30b-a3b:free': 'nvidia/nemotron-3-nano-30b-a3b:free',
-  'qwen/qwen-2.5-72b-instruct:free': 'qwen/qwen-2.5-72b-instruct:free',
-  'mistralai/mistral-small-3.1-24b-instruct:free': 'mistralai/mistral-small-3.1-24b-instruct:free',
-  'deepseek/deepseek-chat-v3-0324:free': 'deepseek/deepseek-chat',
-  'google/gemma-3-27b-it:free': 'google/gemma-3-27b-it:free',
   'meta-llama/llama-3.3-70b-instruct:free': 'meta-llama/llama-3.3-70b-instruct:free',
-  'microsoft/phi-4:free': 'microsoft/phi-4:free',
-
-  'perplexity/sonar': 'perplexity/sonar',
-  'perplexity/sonar-deep-research': 'perplexity/sonar-deep-research',
+  'deepseek/deepseek-r1-0528:free': 'deepseek/deepseek-r1-0528:free',
+  'xiaomi/mimo-v2-flash:free': 'xiaomi/mimo-v2-flash:free',
+  'qwen/qwen3-coder:free': 'qwen/qwen3-coder:free',
+  'mistralai/devstral-2512:free': 'mistralai/devstral-2512:free',
+  'openai/gpt-oss-120b:free': 'openai/gpt-oss-120b:free',
+  'google/gemma-3-27b-it:free': 'google/gemma-3-27b-it:free',
 };
 
 function sanitizeMessagesForModel(model: string, messages: ChatMessage[]): ChatMessage[] {
@@ -386,81 +388,145 @@ Deno.serve(async (req) => {
 
     class HttpError extends Error {
       status: number;
-      constructor(message: string, status: number) {
+      details?: Record<string, unknown>;
+      constructor(message: string, status: number, details?: Record<string, unknown>) {
         super(message);
         this.status = status;
+        this.details = details;
       }
     }
+
+    const safeJsonParse = (text: string): any | null => {
+      try {
+        return JSON.parse(text);
+      } catch {
+        return null;
+      }
+    };
+
+    const extractProviderMessage = (errorText: string): string => {
+      const parsed = safeJsonParse(errorText);
+      // Common OpenRouter shapes
+      const msg =
+        parsed?.error?.message ||
+        parsed?.error?.metadata?.raw ||
+        parsed?.message ||
+        parsed?.error ||
+        '';
+      return typeof msg === 'string' ? msg : errorText;
+    };
+
+    const buildUserFacingError = (status: number, modelId: string, errorText: string, resetHeader?: string | null) => {
+      const providerMsg = extractProviderMessage(errorText);
+
+      if (status === 429) {
+        return {
+          message: resetHeader
+            ? `요청이 너무 많아 잠시 제한되었습니다. 잠시 후 다시 시도해 주세요. (reset: ${resetHeader})`
+            : '요청이 너무 많아 잠시 제한되었습니다. 10~60초 후 다시 시도해 주세요.',
+          details: { model: modelId, status, providerMessage: providerMsg },
+        };
+      }
+
+      if (status === 404) {
+        if (providerMsg.includes('No endpoints found')) {
+          return {
+            message: `선택한 모델(${modelId})을 현재 사용할 수 없습니다. (제공 엔드포인트 없음) 다른 모델로 변경해 주세요.`,
+            details: { model: modelId, status, providerMessage: providerMsg },
+          };
+        }
+        if (providerMsg.includes('No allowed providers')) {
+          return {
+            message: `선택한 모델(${modelId})에 대해 사용 가능한 제공자가 없습니다. 다른 모델로 변경해 주세요.`,
+            details: { model: modelId, status, providerMessage: providerMsg },
+          };
+        }
+        return {
+          message: `선택한 모델(${modelId}) 호출에 실패했습니다. (404) 다른 모델로 변경해 주세요.`,
+          details: { model: modelId, status, providerMessage: providerMsg },
+        };
+      }
+
+      if (status >= 500) {
+        return {
+          message: `모델 제공자 쪽 일시 오류로 실패했습니다. (${status}) 잠시 후 다시 시도해 주세요.`,
+          details: { model: modelId, status, providerMessage: providerMsg },
+        };
+      }
+
+      return {
+        message: `요청 처리 중 오류가 발생했습니다. (${status})`,
+        details: { model: modelId, status, providerMessage: providerMsg },
+      };
+    };
 
     let lastError: HttpError | null = null;
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       const response = await callOpenRouter(apiKey, mappedModel, effectiveMessages, stream);
 
-      if (response.status === 429) {
-        const errorText = await response.text();
-        console.warn(`Rate limited (attempt ${attempt + 1}/${maxRetries}): ${errorText}`);
+       if (response.status === 429) {
+         const errorText = await response.text();
+         console.warn(`Rate limited (attempt ${attempt + 1}/${maxRetries}): ${errorText}`);
 
-        // If it's a hard daily cap, don't retry (retries just burn time/requests)
-        const isDailyLimit = errorText.includes('Daily limit reached') || errorText.includes('limit_rpd');
+         // If it's a hard daily cap, don't retry (retries just burn time/requests)
+         const isDailyLimit = errorText.includes('Daily limit reached') || errorText.includes('limit_rpd');
 
-        if (!isDailyLimit && attempt < maxRetries - 1) {
-          // Wait before retry with exponential backoff
-          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
-          continue;
-        }
+         if (!isDailyLimit && attempt < maxRetries - 1) {
+           // Wait before retry with exponential backoff
+           await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+           continue;
+         }
 
-        const resetHeader = response.headers.get('X-RateLimit-Reset');
-        // Best-effort: mark rate-limit in model_health but don't mark unavailable
-        try {
-          if (supabaseAdmin) {
-            await supabaseAdmin.from('model_health').upsert({
-              model_id: mappedModel,
-              is_available: true,
-              last_checked_at: new Date().toISOString(),
-              error_message: `Rate limited: ${errorText || '429'}`,
-            }, { onConflict: 'model_id' });
-          }
-        } catch (e) {
-          console.warn('Failed to upsert model_health for rate limit (non-fatal):', (e as any)?.message || e);
-        }
+         const resetHeader = response.headers.get('X-RateLimit-Reset');
+         // Best-effort: mark rate-limit in model_health but don't mark unavailable
+         try {
+           if (supabaseAdmin) {
+             await supabaseAdmin.from('model_health').upsert({
+               model_id: mappedModel,
+               is_available: true,
+               last_checked_at: new Date().toISOString(),
+               error_message: `Rate limited: ${errorText || '429'}`,
+             }, { onConflict: 'model_id' });
+           }
+         } catch (e) {
+           console.warn('Failed to upsert model_health for rate limit (non-fatal):', (e as any)?.message || e);
+         }
 
-        lastError = new HttpError(
-          resetHeader
-            ? `Rate limit exceeded. Try again after reset (${resetHeader}).`
-            : 'Rate limit exceeded. Please try again in a few seconds.',
-          429
-        );
-        break;
-      }
+         const friendly = buildUserFacingError(429, mappedModel, errorText, resetHeader);
+         lastError = new HttpError(friendly.message, 429, friendly.details);
+         break;
+       }
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`OpenRouter API error: ${response.status} - ${errorText}`);
+       if (!response.ok) {
+         const errorText = await response.text();
+         console.error(`OpenRouter API error: ${response.status} - ${errorText}`);
 
-        // If it's a 404 or server error, mark the model unavailable for cooldown window
-        try {
-          if (supabaseAdmin) {
-            const markUnavailable = response.status === 404 || response.status >= 500;
-            await supabaseAdmin.from('model_health').upsert({
-              model_id: mappedModel,
-              is_available: markUnavailable ? false : true,
-              last_checked_at: new Date().toISOString(),
-              error_message: `OpenRouter ${response.status}: ${errorText}`,
-            }, { onConflict: 'model_id' });
-          }
-        } catch (e) {
-          console.warn('Failed to upsert model_health (non-fatal):', (e as any)?.message || e);
-        }
+         // If it's a 404 or server error, mark the model unavailable for cooldown window
+         try {
+           if (supabaseAdmin) {
+             const markUnavailable = response.status === 404 || response.status >= 500;
+             await supabaseAdmin.from('model_health').upsert({
+               model_id: mappedModel,
+               is_available: markUnavailable ? false : true,
+               last_checked_at: new Date().toISOString(),
+               error_message: `OpenRouter ${response.status}: ${errorText}`,
+             }, { onConflict: 'model_id' });
+           }
+         } catch (e) {
+           console.warn('Failed to upsert model_health (non-fatal):', (e as any)?.message || e);
+         }
 
-        // Retry transient errors, but preserve the upstream status code
-        lastError = new HttpError(`OpenRouter API error: ${response.status}`, response.status);
-        if (attempt < maxRetries - 1) {
-          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
-          continue;
-        }
-        break;
-      }
+         const friendly = buildUserFacingError(response.status, mappedModel, errorText);
+
+         // Retry transient errors, but preserve the upstream status code
+         lastError = new HttpError(friendly.message, response.status, friendly.details);
+         if (attempt < maxRetries - 1) {
+           await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+           continue;
+         }
+         break;
+       }
 
       // Success
       if (stream) {
@@ -510,9 +576,12 @@ Deno.serve(async (req) => {
     const status = typeof (error as any)?.status === 'number' ? (error as any).status : 500;
 
     const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    console.error('Error in chat function:', errorMessage);
+    const details = (error as any)?.details && typeof (error as any).details === 'object'
+      ? (error as any).details
+      : undefined;
 
-    // Use the standardized JSON error response
+    // Log and return the standardized JSON error response so clients get a stable schema
+    console.error('Error in chat function:', errorMessage, details ? JSON.stringify(details) : '');
     return jsonErrorResponse(errorMessage, status, (error as any)?.code || undefined, (error as any)?.detail || undefined);
   }
 });

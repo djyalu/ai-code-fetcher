@@ -18,7 +18,7 @@ const ADMIN_EMAIL = 'go41@naver.com';
 
 const Index = () => {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [selectedModel, setSelectedModel] = useState('google/gemini-2.0-flash-exp:free'); // Default to a free model
+  const [selectedModel, setSelectedModel] = useState('google/gemma-3-27b-it:free'); // Default to a stable free model
   const [synthesisMode, setSynthesisMode] = useState(false);
   const [synthesisModelIds, setSynthesisModelIds] = useState<string[]>(SYNTHESIS_MODELS);
   const [isSystemControlOpen, setIsSystemControlOpen] = useState(false);
@@ -55,7 +55,7 @@ const Index = () => {
       if (session?.user) syncProfile(session.user);
       // If user logs out, and current selected model is premium, switch to free
       if (!session) {
-        setSelectedModel(prev => isPremiumModel(prev) ? 'google/gemini-2.0-flash-exp:free' : prev);
+        setSelectedModel(prev => isPremiumModel(prev) ? 'google/gemma-3-27b-it:free' : prev);
         setSynthesisModelIds(prev => prev.filter(id => !isPremiumModel(id)));
       }
     });
@@ -63,20 +63,6 @@ const Index = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Ensure Perplexity models are not selected/visible for non-admin users
-  useEffect(() => {
-    if (!isAdmin) {
-      const selected = getModelById(selectedModel);
-      if (selected && selected.provider === 'perplexity') {
-        setSelectedModel('google/gemini-2.0-flash-exp:free');
-      }
-
-      setSynthesisModelIds(prev => prev.filter(id => {
-        const m = getModelById(id);
-        return m ? m.provider !== 'perplexity' : true;
-      }));
-    }
-  }, [isAdmin]);
 
   const syncProfile = async (user: any) => {
     try {
@@ -280,7 +266,7 @@ const Index = () => {
   return (
     <div className="flex flex-col h-screen bg-background">
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 glass-strong sticky top-0 z-10">
+      <header className="flex items-center justify-between px-6 py-4 border-b border-border bg-card/80 backdrop-blur-xl sticky top-0 z-10">
         <div className="flex items-center gap-3 group cursor-pointer" onClick={() => window.location.reload()}>
           <img
             src="logo.png"
@@ -292,15 +278,15 @@ const Index = () => {
         <div className="flex items-center gap-2">
           {session ? (
             <div className="flex items-center gap-2 mr-2">
-              <Badge variant="outline" className="text-zinc-400 border-zinc-800 hidden sm:flex">
+              <Badge variant="outline" className="text-muted-foreground border-border hidden sm:flex">
                 {session.user.email}
               </Badge>
-              <Button variant="ghost" size="icon" onClick={handleLogout} className="text-zinc-500 hover:text-red-400 hover:bg-red-950/20">
+              <Button variant="ghost" size="icon" onClick={handleLogout} className="text-muted-foreground hover:text-destructive hover:bg-destructive/10">
                 <LogOut className="w-4 h-4" />
               </Button>
             </div>
           ) : (
-            <Button variant="ghost" size="sm" onClick={() => setIsAuthDialogOpen(true)} className="gap-2 text-zinc-500 hover:text-white">
+            <Button variant="ghost" size="sm" onClick={() => setIsAuthDialogOpen(true)} className="gap-2 text-muted-foreground hover:text-foreground">
               <User className="w-4 h-4" />
               <span className="hidden sm:inline">Login</span>
             </Button>
@@ -335,10 +321,10 @@ const Index = () => {
       <main className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-thin">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center px-4">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mb-8 shadow-xl shadow-indigo-500/20">
+            <div className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center mb-8 shadow-xl shadow-primary/20">
               <Sparkles className="w-8 h-8 text-white fill-current animate-pulse-slow" />
             </div>
-            <h2 className="text-2xl font-semibold mb-2">AI_ALL에 오신 것을 환영합니다</h2>
+            <h2 className="text-2xl font-semibold text-foreground mb-2">AI_ALL에 오신 것을 환영합니다</h2>
             <p className="text-muted-foreground max-w-md mb-8">
               GPT-4o, Claude, Gemini, DeepSeek 등 다양한 AI 모델과 대화하세요.
               Synthesis 모드로 여러 모델의 답변을 종합할 수도 있습니다.
@@ -348,7 +334,7 @@ const Index = () => {
                 <button
                   key={suggestion}
                   onClick={() => handleSendMessage(suggestion)}
-                  className="glass px-5 py-2.5 rounded-full text-[13px] font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all border border-zinc-200 dark:border-zinc-800 shadow-sm hover:shadow-md active:scale-95 truncate max-w-[250px]"
+                  className="px-5 py-2.5 rounded-full text-[13px] font-medium bg-card hover:bg-muted transition-all border border-border shadow-sm hover:shadow-md active:scale-95 truncate max-w-[250px] text-foreground"
                   title={suggestion}
                 >
                   {suggestion}
@@ -363,10 +349,10 @@ const Index = () => {
             ))}
             {isLoading && (
               <div className="flex gap-4 animate-fade-in">
-                <div className="w-9 h-9 rounded-xl glass flex items-center justify-center">
-                  <Bot className="w-5 h-5" />
+                <div className="w-9 h-9 rounded-xl bg-muted border border-border flex items-center justify-center">
+                  <Bot className="w-5 h-5 text-muted-foreground" />
                 </div>
-                <div className="glass border rounded-2xl rounded-bl-md px-4 py-3">
+                <div className="bg-card border border-border rounded-2xl rounded-bl-md px-4 py-3">
                   <div className="flex gap-1">
                     <span className="w-2 h-2 bg-muted-foreground rounded-full animate-typing" style={{ animationDelay: '0s' }} />
                     <span className="w-2 h-2 bg-muted-foreground rounded-full animate-typing" style={{ animationDelay: '0.2s' }} />
@@ -381,7 +367,7 @@ const Index = () => {
       </main>
 
       {/* Input */}
-      <footer className="p-4 pt-2">
+      <footer className="p-4 pt-2 bg-background">
         <ChatInput
           onSend={handleSendMessage}
           isLoading={isLoading}

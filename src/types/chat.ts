@@ -1,4 +1,4 @@
-export type AIProvider = 'openai' | 'anthropic' | 'google' | 'deepseek' | 'mistral' | 'nvidia' | 'meta' | 'openrouter' | 'perplexity' | 'qwen' | 'microsoft';
+export type AIProvider = 'openai' | 'anthropic' | 'google' | 'deepseek' | 'mistral' | 'nvidia' | 'meta' | 'openrouter' | 'arcee' | 'perplexity' | 'qwen' | 'microsoft' | 'xiaomi';
 
 export interface AIModel {
   id: string;
