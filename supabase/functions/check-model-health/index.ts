@@ -1,5 +1,5 @@
 // Model Health Check Edge Function
-// Runs daily at 5 AM to check availability of all models
+// Checks availability of specified models or all active models from database
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -12,36 +12,10 @@ interface ModelCheckResult {
   modelId: string;
   isAvailable: boolean;
   errorMessage?: string;
+  responseTime?: number;
 }
 
-// Models to check - OpenRouter models
-// Keep this list in sync with src/constants/models.ts (non-Perplexity models)
-const OPENROUTER_MODELS = [
-  // Free models
-  'google/gemini-2.0-flash-exp:free',
-  'nvidia/nemotron-3-nano-30b-a3b:free',
-  'qwen/qwen-2.5-72b-instruct:free',
-  'mistralai/mistral-small-3.1-24b-instruct:free',
-  'deepseek/deepseek-chat-v3-0324:free',
-  'google/gemma-3-27b-it:free',
-  'meta-llama/llama-3.3-70b-instruct:free',
-  'microsoft/phi-4:free',
-  // Premium models
-  'gpt-4o',
-  'gpt-4o-mini',
-  'claude-3-5-sonnet',
-  'claude-3-5-haiku',
-  'gemini-2.0-flash',
-  'gemini-1.5-pro',
-  'deepseek-chat',
-];
-
-// Perplexity models - only keep officially supported sonar variants
-const PERPLEXITY_MODELS = [
-  'sonar',
-  'sonar-deep-research',
-];
-
+// OpenRouter model ID mapping for legacy short IDs
 const OPENROUTER_MODEL_MAP: Record<string, string> = {
   'gpt-4o': 'openai/gpt-4o',
   'gpt-4o-mini': 'openai/gpt-4o-mini',
@@ -54,6 +28,7 @@ const OPENROUTER_MODEL_MAP: Record<string, string> = {
 
 async function checkOpenRouterModel(apiKey: string, modelId: string): Promise<ModelCheckResult> {
   const mappedModel = OPENROUTER_MODEL_MAP[modelId] || modelId;
+  const startTime = Date.now();
   
   try {
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -71,33 +46,40 @@ async function checkOpenRouterModel(apiKey: string, modelId: string): Promise<Mo
       }),
     });
 
+    const responseTime = Date.now() - startTime;
+
     if (response.ok) {
-      return { modelId, isAvailable: true };
+      return { modelId, isAvailable: true, responseTime };
     }
 
     const errorText = await response.text();
     
     // 429 is rate limit - model exists but temporarily unavailable
     if (response.status === 429) {
-      return { modelId, isAvailable: true, errorMessage: 'Rate limited but available' };
+      return { modelId, isAvailable: true, errorMessage: 'Rate limited but available', responseTime };
     }
 
     // 404 means model doesn't exist or no providers
     if (response.status === 404) {
-      return { modelId, isAvailable: false, errorMessage: errorText };
+      return { modelId, isAvailable: false, errorMessage: errorText, responseTime };
     }
 
-    return { modelId, isAvailable: false, errorMessage: `HTTP ${response.status}: ${errorText}` };
+    return { modelId, isAvailable: false, errorMessage: `HTTP ${response.status}: ${errorText}`, responseTime };
   } catch (error) {
     return { 
       modelId, 
       isAvailable: false, 
-      errorMessage: error instanceof Error ? error.message : 'Unknown error' 
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      responseTime: Date.now() - startTime
     };
   }
 }
 
 async function checkPerplexityModel(apiKey: string, modelId: string): Promise<ModelCheckResult> {
+  const startTime = Date.now();
+  // Extract the model name if it has perplexity/ prefix
+  const cleanModelId = modelId.startsWith('perplexity/') ? modelId.replace('perplexity/', '') : modelId;
+  
   try {
     const response = await fetch('https://api.perplexity.ai/chat/completions', {
       method: 'POST',
@@ -106,34 +88,42 @@ async function checkPerplexityModel(apiKey: string, modelId: string): Promise<Mo
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: modelId,
+        model: cleanModelId,
         messages: [{ role: 'user', content: 'ping' }],
         max_tokens: 5,
       }),
     });
 
+    const responseTime = Date.now() - startTime;
+
     if (response.ok) {
-      return { modelId: `perplexity/${modelId}`, isAvailable: true };
+      return { modelId: `perplexity/${cleanModelId}`, isAvailable: true, responseTime };
     }
 
     const errorText = await response.text();
     
     if (response.status === 429) {
-      return { modelId: `perplexity/${modelId}`, isAvailable: true, errorMessage: 'Rate limited but available' };
+      return { modelId: `perplexity/${cleanModelId}`, isAvailable: true, errorMessage: 'Rate limited but available', responseTime };
     }
 
     return { 
-      modelId: `perplexity/${modelId}`, 
+      modelId: `perplexity/${cleanModelId}`, 
       isAvailable: false, 
-      errorMessage: `HTTP ${response.status}: ${errorText}` 
+      errorMessage: `HTTP ${response.status}: ${errorText}`,
+      responseTime
     };
   } catch (error) {
     return { 
-      modelId: `perplexity/${modelId}`, 
+      modelId: `perplexity/${cleanModelId}`, 
       isAvailable: false, 
-      errorMessage: error instanceof Error ? error.message : 'Unknown error' 
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      responseTime: Date.now() - startTime
     };
   }
+}
+
+function isPerplexityModel(modelId: string): boolean {
+  return modelId.startsWith('sonar') || modelId.startsWith('perplexity/');
 }
 
 Deno.serve(async (req) => {
@@ -149,28 +139,80 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log('Starting model health check...');
+    // Parse request body for specific model IDs
+    let modelIds: string[] = [];
+    try {
+      const body = await req.json();
+      if (body.model_ids && Array.isArray(body.model_ids)) {
+        modelIds = body.model_ids;
+      } else if (body.model_id) {
+        modelIds = [body.model_id];
+      }
+    } catch {
+      // No body or invalid JSON - will fetch from database
+    }
+
+    // If no specific models requested, fetch all active models from database
+    if (modelIds.length === 0) {
+      const { data: dbModels, error: dbError } = await supabase
+        .from('ai_models')
+        .select('id, model_id')
+        .eq('is_active', true);
+
+      if (dbError) {
+        console.error('Error fetching models from database:', dbError);
+      } else if (dbModels && dbModels.length > 0) {
+        modelIds = dbModels.map((m: any) => m.model_id || m.id);
+      }
+    }
+
+    if (modelIds.length === 0) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'No models to check',
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log(`Starting health check for ${modelIds.length} models...`);
 
     const results: ModelCheckResult[] = [];
 
-    // Check OpenRouter models (with delay to avoid rate limits)
-    if (openRouterKey) {
-      for (const modelId of OPENROUTER_MODELS) {
+    // Group models by provider
+    const perplexityModels = modelIds.filter(isPerplexityModel);
+    const openRouterModels = modelIds.filter(id => !isPerplexityModel(id));
+
+    // Check OpenRouter models
+    if (openRouterKey && openRouterModels.length > 0) {
+      for (const modelId of openRouterModels) {
         const result = await checkOpenRouterModel(openRouterKey, modelId);
         results.push(result);
-        console.log(`${modelId}: ${result.isAvailable ? '✓' : '✗'} ${result.errorMessage || ''}`);
-        // Small delay between checks
-        await new Promise(resolve => setTimeout(resolve, 500));
+        console.log(`${modelId}: ${result.isAvailable ? '✓' : '✗'} (${result.responseTime}ms) ${result.errorMessage || ''}`);
+        // Small delay between checks to avoid rate limits
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+    } else if (openRouterModels.length > 0) {
+      console.warn('OPENROUTER_API_KEY not set, skipping OpenRouter models');
+      for (const modelId of openRouterModels) {
+        results.push({ modelId, isAvailable: false, errorMessage: 'API key not configured' });
       }
     }
 
     // Check Perplexity models
-    if (perplexityKey) {
-      for (const modelId of PERPLEXITY_MODELS) {
+    if (perplexityKey && perplexityModels.length > 0) {
+      for (const modelId of perplexityModels) {
         const result = await checkPerplexityModel(perplexityKey, modelId);
         results.push(result);
-        console.log(`${result.modelId}: ${result.isAvailable ? '✓' : '✗'} ${result.errorMessage || ''}`);
-        await new Promise(resolve => setTimeout(resolve, 500));
+        console.log(`${result.modelId}: ${result.isAvailable ? '✓' : '✗'} (${result.responseTime}ms) ${result.errorMessage || ''}`);
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+    } else if (perplexityModels.length > 0) {
+      console.warn('PERPLEXITY_API_KEY not set, skipping Perplexity models');
+      for (const modelId of perplexityModels) {
+        const cleanId = modelId.startsWith('perplexity/') ? modelId : `perplexity/${modelId}`;
+        results.push({ modelId: cleanId, isAvailable: false, errorMessage: 'API key not configured' });
       }
     }
 
