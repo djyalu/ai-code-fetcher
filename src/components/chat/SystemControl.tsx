@@ -1,5 +1,24 @@
+import { useState, useEffect } from 'react';
+import { Settings2, History, Users, X, Lock, Check } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ModelManagementContent } from "@/components/admin/ModelManagement";
+import { MemberManagement } from "@/components/admin/MemberManagement";
+import { PromptHistory } from "@/components/admin/PromptHistory";
+import { useModelHealth } from "@/hooks/useModelHealth";
+import { useAIModels } from "@/hooks/useAIModels";
+
+interface SystemControlProps {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    selectedModelIds: string[];
+    onApply: (modelIds: string[]) => void;
+    isAdmin?: boolean;
+    isLoggedIn?: boolean;
+}
 
 export const SystemControl = ({
     open,
