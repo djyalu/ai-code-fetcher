@@ -86,29 +86,29 @@ export const SystemControl = ({
     return (
         <>
             <Dialog open={open} onOpenChange={onOpenChange}>
-                <DialogContent className="max-w-5xl h-[85vh] p-0 gap-0 bg-zinc-950 border-zinc-800">
+                <DialogContent className="max-w-5xl h-[85vh] p-0 gap-0 bg-card border-border overflow-hidden">
                     <DialogTitle className="sr-only">System Configuration</DialogTitle>
 
-                    <Tabs defaultValue="synthesis" className="flex flex-col h-full">
+                    <Tabs defaultValue="synthesis" className="flex flex-col h-full overflow-hidden">
                         {/* Header with Tabs */}
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 shrink-0 bg-zinc-950">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0 bg-card">
                             <div className="flex items-center gap-4">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-lg bg-zinc-900 flex items-center justify-center">
-                                        <Settings2 className="w-5 h-5 text-zinc-400" />
+                                    <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                                        <Settings2 className="w-5 h-5 text-muted-foreground" />
                                     </div>
                                     <div>
-                                        <h2 className="text-lg font-semibold text-white">System Settings</h2>
-                                        <p className="text-xs text-zinc-500">Configure AI synthesis and models</p>
+                                        <h2 className="text-lg font-semibold text-foreground">System Settings</h2>
+                                        <p className="text-xs text-muted-foreground">Configure AI synthesis and models</p>
                                     </div>
                                 </div>
-                                <div className="h-8 w-px bg-zinc-800 mx-2" />
-                                <TabsList className="bg-zinc-900 border border-zinc-800">
-                                    <TabsTrigger value="synthesis" className="data-[state=active]:bg-zinc-800 data-[state=active]:text-white">
+                                <div className="h-8 w-px bg-border mx-2" />
+                                <TabsList className="bg-muted border border-border">
+                                    <TabsTrigger value="synthesis" className="data-[state=active]:bg-background data-[state=active]:text-foreground">
                                         Synthesis
                                     </TabsTrigger>
                                     {isAdmin && (
-                                        <TabsTrigger value="models" className="data-[state=active]:bg-zinc-800 data-[state=active]:text-white">
+                                        <TabsTrigger value="models" className="data-[state=active]:bg-background data-[state=active]:text-foreground">
                                             Manage Models
                                         </TabsTrigger>
                                     )}
@@ -122,7 +122,7 @@ export const SystemControl = ({
                                             variant="ghost"
                                             size="sm"
                                             onClick={() => setIsPromptHistoryOpen(true)}
-                                            className="gap-2 text-zinc-400 hover:text-white"
+                                            className="gap-2 text-muted-foreground hover:text-foreground"
                                         >
                                             <History className="w-4 h-4" />
                                             History
@@ -131,7 +131,7 @@ export const SystemControl = ({
                                             variant="ghost"
                                             size="sm"
                                             onClick={() => setIsMemberManagementOpen(true)}
-                                            className="gap-2 text-zinc-400 hover:text-white"
+                                            className="gap-2 text-muted-foreground hover:text-foreground"
                                         >
                                             <Users className="w-4 h-4" />
                                             Members
@@ -142,7 +142,7 @@ export const SystemControl = ({
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => onOpenChange(false)}
-                                    className="text-zinc-400 hover:text-white"
+                                    className="text-muted-foreground hover:text-foreground"
                                 >
                                     <X className="w-5 h-5" />
                                 </Button>
@@ -150,8 +150,8 @@ export const SystemControl = ({
                         </div>
 
                         {/* Synthesis Tab Content */}
-                        <TabsContent value="synthesis" className="flex-1 overflow-hidden flex flex-col mt-0">
-                            <div className="flex-1 overflow-y-auto p-6 space-y-8">
+                        <TabsContent value="synthesis" className="flex-1 overflow-hidden flex flex-col mt-0 min-h-0">
+                            <div className="flex-1 overflow-y-auto p-6 space-y-8 min-h-0">
                                 {/* Premium Models */}
                                 {premiumModels.length > 0 && (
                                     <div className="space-y-3">
@@ -159,7 +159,7 @@ export const SystemControl = ({
                                             <Badge variant="outline" className="border-indigo-500/30 text-indigo-400">
                                                 Premium
                                             </Badge>
-                                            <span className="text-xs text-zinc-500">
+                                            <span className="text-xs text-muted-foreground">
                                                 {premiumModels.filter(m => localSelectedIds.includes(m.id)).length} / {premiumModels.length} selected
                                             </span>
                                             {!isLoggedIn && (
@@ -181,8 +181,8 @@ export const SystemControl = ({
                                                             w-full text-left p-4 rounded-lg border transition-all
                                                             ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}
                                                             ${isSelected
-                                                                ? 'bg-zinc-900 border-zinc-700'
-                                                                : 'bg-zinc-950 border-zinc-800 hover:border-zinc-700'
+                                                                ? 'bg-muted border-border'
+                                                                : 'bg-card border-border hover:border-primary/30'
                                                             }
                                                         `}
                                                     >
@@ -190,24 +190,24 @@ export const SystemControl = ({
                                                             <div className="flex-1 min-w-0">
                                                                 <div className="flex items-center gap-2 mb-1">
                                                                     {getHealthIndicator(model.id)}
-                                                                    <h3 className="font-medium text-white">{model.name}</h3>
-                                                                    <span className="text-xs text-zinc-500">
+                                                                    <h3 className="font-medium text-foreground">{model.name}</h3>
+                                                                    <span className="text-xs text-muted-foreground">
                                                                         ${model.inputPrice}/1M
                                                                     </span>
-                                                                    {isLocked && <Lock className="w-3 h-3 text-zinc-500" />}
+                                                                    {isLocked && <Lock className="w-3 h-3 text-muted-foreground" />}
                                                                 </div>
-                                                                <p className="text-xs text-zinc-500 truncate">
+                                                                <p className="text-xs text-muted-foreground truncate">
                                                                     {model.description}
                                                                 </p>
                                                             </div>
                                                             <div className={`
                                                                 ml-4 w-5 h-5 rounded border-2 flex items-center justify-center shrink-0
                                                                 ${isSelected
-                                                                    ? 'bg-white border-white'
-                                                                    : 'border-zinc-700'
+                                                                    ? 'bg-primary border-primary'
+                                                                    : 'border-border'
                                                                 }
                                                             `}>
-                                                                {isSelected && <Check className="w-3 h-3 text-black" />}
+                                                                {isSelected && <Check className="w-3 h-3 text-primary-foreground" />}
                                                             </div>
                                                         </div>
                                                     </button>
@@ -224,7 +224,7 @@ export const SystemControl = ({
                                             <Badge variant="outline" className="border-green-500/30 text-green-400">
                                                 Free
                                             </Badge>
-                                            <span className="text-xs text-zinc-500">
+                                            <span className="text-xs text-muted-foreground">
                                                 {freeModels.filter(m => localSelectedIds.includes(m.id)).length} / {freeModels.length} selected
                                             </span>
                                         </div>
@@ -238,8 +238,8 @@ export const SystemControl = ({
                                                         className={`
                                                             w-full text-left p-4 rounded-lg border transition-all
                                                             ${isSelected
-                                                                ? 'bg-zinc-900 border-zinc-700'
-                                                                : 'bg-zinc-950 border-zinc-800 hover:border-zinc-700'
+                                                                ? 'bg-muted border-border'
+                                                                : 'bg-card border-border hover:border-primary/30'
                                                             }
                                                         `}
                                                     >
@@ -247,23 +247,23 @@ export const SystemControl = ({
                                                             <div className="flex-1 min-w-0">
                                                                 <div className="flex items-center gap-2 mb-1">
                                                                     {getHealthIndicator(model.id)}
-                                                                    <h3 className="font-medium text-white">{model.name}</h3>
-                                                                    <span className="text-xs text-zinc-600">
+                                                                    <h3 className="font-medium text-foreground">{model.name}</h3>
+                                                                    <span className="text-xs text-muted-foreground">
                                                                         {(model.contextWindow / 1000).toFixed(0)}K ctx
                                                                     </span>
                                                                 </div>
-                                                                <p className="text-xs text-zinc-500 truncate">
+                                                                <p className="text-xs text-muted-foreground truncate">
                                                                     {model.description}
                                                                 </p>
                                                             </div>
                                                             <div className={`
                                                                 ml-4 w-5 h-5 rounded border-2 flex items-center justify-center shrink-0
                                                                 ${isSelected
-                                                                    ? 'bg-white border-white'
-                                                                    : 'border-zinc-700'
+                                                                    ? 'bg-primary border-primary'
+                                                                    : 'border-border'
                                                                 }
                                                             `}>
-                                                                {isSelected && <Check className="w-3 h-3 text-black" />}
+                                                                {isSelected && <Check className="w-3 h-3 text-primary-foreground" />}
                                                             </div>
                                                         </div>
                                                     </button>
@@ -275,14 +275,11 @@ export const SystemControl = ({
                             </div>
 
                             {/* Footer */}
-                            <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-800 bg-zinc-950 mt-auto">
-                                <span className="text-sm text-zinc-400">
+                            <div className="flex items-center justify-between px-6 py-4 border-t border-border bg-card mt-auto shrink-0">
+                                <span className="text-sm text-muted-foreground">
                                     {localSelectedIds.length} model{localSelectedIds.length !== 1 ? 's' : ''} selected
                                 </span>
-                                <Button
-                                    onClick={handleApply}
-                                    className="bg-white text-black hover:bg-zinc-200"
-                                >
+                                <Button onClick={handleApply}>
                                     Apply Changes
                                 </Button>
                             </div>
@@ -290,7 +287,7 @@ export const SystemControl = ({
 
                         {/* Model Management Tab Content */}
                         {isAdmin && (
-                            <TabsContent value="models" className="flex-1 overflow-hidden mt-0">
+                            <TabsContent value="models" className="flex-1 overflow-hidden mt-0 min-h-0">
                                 <ModelManagementContent />
                             </TabsContent>
                         )}
