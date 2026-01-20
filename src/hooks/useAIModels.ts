@@ -1,4 +1,3 @@
-
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { AIModel } from '@/types/chat';
@@ -13,6 +12,7 @@ export const useAIModels = () => {
             const { data, error } = await supabase
                 .from('ai_models' as any)
                 .select('*')
+                .order('input_price', { ascending: true })
                 .order('provider', { ascending: true })
                 .order('name', { ascending: true });
 
@@ -33,8 +33,9 @@ export const useAIModels = () => {
                 inputPrice: m.input_price,
                 outputPrice: m.output_price,
                 contextWindow: m.context_window,
-                color: m.color
-            })) as AIModel[];
+                color: m.color,
+                isActive: m.is_active !== false
+            })) as (AIModel & { isActive: boolean })[];
         },
         staleTime: 1000 * 60 * 5, // 5 minutes
     });
@@ -44,22 +45,28 @@ export const useAIModels = () => {
     const seedModels = async () => {
         const rows = MODELS.map(m => ({
             id: m.id,
+            model_id: m.id,
             name: m.name,
             provider: m.provider,
             description: m.description,
             input_price: m.inputPrice,
             output_price: m.outputPrice,
             context_window: m.contextWindow,
-            color: m.color
+            color: m.color,
+            is_active: true
         }));
 
         const { error } = await supabase
             .from('ai_models' as any)
-            .upsert(rows);
+            .upsert(rows, { onConflict: 'id' });
 
         if (error) throw error;
         await refreshModels();
     };
 
-    return { models, isLoading, error, refreshModels, seedModels };
+    // Filter only active models for UI consumption
+    const activeModels = models.filter((m: any) => m.isActive !== false);
+
+    return { models, activeModels, isLoading, error, refreshModels, seedModels };
 };
+
