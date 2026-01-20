@@ -368,9 +368,9 @@ export const ModelManagementContent = () => {
     );
 
     return (
-        <div className="flex flex-col h-full bg-card">
+        <div className="flex flex-col h-full overflow-hidden">
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
                         <Database className="w-5 h-5 text-muted-foreground" />
@@ -408,7 +408,7 @@ export const ModelManagementContent = () => {
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 overflow-y-auto p-6 min-h-0">
                 {error && (
                     <div className="mb-4 p-4 rounded bg-destructive/10 border border-destructive/30 text-destructive flex items-center gap-2">
                         <AlertTriangle className="w-4 h-4" />
