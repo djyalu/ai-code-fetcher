@@ -1,5 +1,5 @@
 // Model Health Check Edge Function
-// Checks availability of specified models or all active models from database
+// Checks availability of models using OpenRouter /api/v1/models (FREE) or ping test
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -13,6 +13,21 @@ interface ModelCheckResult {
   isAvailable: boolean;
   errorMessage?: string;
   responseTime?: number;
+  metadata?: {
+    inputPrice?: number;
+    outputPrice?: number;
+    contextWindow?: number;
+  };
+}
+
+interface OpenRouterModel {
+  id: string;
+  name: string;
+  pricing: {
+    prompt: string;
+    completion: string;
+  };
+  context_length: number;
 }
 
 // OpenRouter model ID mapping for legacy short IDs
@@ -26,7 +41,54 @@ const OPENROUTER_MODEL_MAP: Record<string, string> = {
   'deepseek-chat': 'deepseek/deepseek-chat',
 };
 
-async function checkOpenRouterModel(apiKey: string, modelId: string): Promise<ModelCheckResult> {
+// Reverse mapping for finding DB model ID from OpenRouter ID
+const REVERSE_MODEL_MAP: Record<string, string> = Object.entries(OPENROUTER_MODEL_MAP)
+  .reduce((acc, [key, value]) => ({ ...acc, [value]: key }), {});
+
+// Fetch OpenRouter model list (FREE - no API credits consumed)
+async function fetchOpenRouterModelList(apiKey: string): Promise<OpenRouterModel[]> {
+  const response = await fetch('https://openrouter.ai/api/v1/models', {
+    headers: { 'Authorization': `Bearer ${apiKey}` }
+  });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch models: ${response.status}`);
+  }
+  
+  const data = await response.json();
+  return data.data || [];
+}
+
+// Check model availability from the fetched list (FREE)
+function checkModelInList(modelId: string, modelList: OpenRouterModel[]): ModelCheckResult {
+  const mappedModel = OPENROUTER_MODEL_MAP[modelId] || modelId;
+  const found = modelList.find(m => m.id === mappedModel);
+  
+  if (found) {
+    // Convert pricing from per-token to per-million-tokens
+    const inputPrice = parseFloat(found.pricing.prompt) * 1_000_000;
+    const outputPrice = parseFloat(found.pricing.completion) * 1_000_000;
+    
+    return {
+      modelId,
+      isAvailable: true,
+      metadata: {
+        inputPrice: isNaN(inputPrice) ? undefined : inputPrice,
+        outputPrice: isNaN(outputPrice) ? undefined : outputPrice,
+        contextWindow: found.context_length,
+      }
+    };
+  }
+  
+  return {
+    modelId,
+    isAvailable: false,
+    errorMessage: 'Model not found in OpenRouter catalog'
+  };
+}
+
+// Ping test for OpenRouter models (consumes API credits)
+async function pingOpenRouterModel(apiKey: string, modelId: string): Promise<ModelCheckResult> {
   const mappedModel = OPENROUTER_MODEL_MAP[modelId] || modelId;
   const startTime = Date.now();
   
@@ -54,12 +116,10 @@ async function checkOpenRouterModel(apiKey: string, modelId: string): Promise<Mo
 
     const errorText = await response.text();
     
-    // 429 is rate limit - model exists but temporarily unavailable
     if (response.status === 429) {
       return { modelId, isAvailable: true, errorMessage: 'Rate limited but available', responseTime };
     }
 
-    // 404 means model doesn't exist or no providers
     if (response.status === 404) {
       return { modelId, isAvailable: false, errorMessage: errorText, responseTime };
     }
@@ -75,55 +135,25 @@ async function checkOpenRouterModel(apiKey: string, modelId: string): Promise<Mo
   }
 }
 
-async function checkPerplexityModel(apiKey: string, modelId: string): Promise<ModelCheckResult> {
-  const startTime = Date.now();
-  // Extract the model name if it has perplexity/ prefix
-  const cleanModelId = modelId.startsWith('perplexity/') ? modelId.replace('perplexity/', '') : modelId;
-  
-  try {
-    const response = await fetch('https://api.perplexity.ai/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: cleanModelId,
-        messages: [{ role: 'user', content: 'ping' }],
-        max_tokens: 5,
-      }),
-    });
-
-    const responseTime = Date.now() - startTime;
-
-    if (response.ok) {
-      return { modelId: `perplexity/${cleanModelId}`, isAvailable: true, responseTime };
-    }
-
-    const errorText = await response.text();
-    
-    if (response.status === 429) {
-      return { modelId: `perplexity/${cleanModelId}`, isAvailable: true, errorMessage: 'Rate limited but available', responseTime };
-    }
-
-    return { 
-      modelId: `perplexity/${cleanModelId}`, 
-      isAvailable: false, 
-      errorMessage: `HTTP ${response.status}: ${errorText}`,
-      responseTime
-    };
-  } catch (error) {
-    return { 
-      modelId: `perplexity/${cleanModelId}`, 
-      isAvailable: false, 
-      errorMessage: error instanceof Error ? error.message : 'Unknown error',
-      responseTime: Date.now() - startTime
-    };
-  }
-}
+// Known Perplexity models (hardcoded since no list API available)
+const PERPLEXITY_MODELS = [
+  'sonar', 'sonar-pro', 'sonar-reasoning', 'sonar-reasoning-pro',
+  'sonar-deep-research', 'r1-1776'
+];
 
 function isPerplexityModel(modelId: string): boolean {
   return modelId.startsWith('sonar') || modelId.startsWith('perplexity/');
+}
+
+function checkPerplexityModelInList(modelId: string): ModelCheckResult {
+  const cleanId = modelId.startsWith('perplexity/') ? modelId.replace('perplexity/', '') : modelId;
+  const isKnown = PERPLEXITY_MODELS.includes(cleanId);
+  
+  return {
+    modelId: modelId.startsWith('perplexity/') ? modelId : `perplexity/${modelId}`,
+    isAvailable: isKnown,
+    errorMessage: isKnown ? undefined : 'Unknown Perplexity model'
+  };
 }
 
 Deno.serve(async (req) => {
@@ -133,14 +163,17 @@ Deno.serve(async (req) => {
 
   try {
     const openRouterKey = Deno.env.get('OPENROUTER_API_KEY');
-    const perplexityKey = Deno.env.get('PERPLEXITY_API_KEY');
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Parse request body for specific model IDs
+    // Parse request body
     let modelIds: string[] = [];
+    let mode: 'free' | 'ping' = 'free'; // Default to free mode
+    let autoToggle = false;
+    let syncMetadata = false;
+    
     try {
       const body = await req.json();
       if (body.model_ids && Array.isArray(body.model_ids)) {
@@ -148,16 +181,24 @@ Deno.serve(async (req) => {
       } else if (body.model_id) {
         modelIds = [body.model_id];
       }
+      if (body.mode === 'ping') {
+        mode = 'ping';
+      }
+      if (body.auto_toggle === true) {
+        autoToggle = true;
+      }
+      if (body.sync_metadata === true) {
+        syncMetadata = true;
+      }
     } catch {
       // No body or invalid JSON - will fetch from database
     }
 
-    // If no specific models requested, fetch all active models from database
+    // If no specific models requested, fetch all models from database (including inactive for sync)
     if (modelIds.length === 0) {
       const { data: dbModels, error: dbError } = await supabase
         .from('ai_models')
-        .select('id, model_id')
-        .eq('is_active', true);
+        .select('id, model_id');
 
       if (dbError) {
         console.error('Error fetching models from database:', dbError);
@@ -176,21 +217,39 @@ Deno.serve(async (req) => {
       });
     }
 
-    console.log(`Starting health check for ${modelIds.length} models...`);
+    console.log(`Starting ${mode} health check for ${modelIds.length} models... (autoToggle: ${autoToggle}, syncMetadata: ${syncMetadata})`);
 
     const results: ModelCheckResult[] = [];
+    let openRouterModelList: OpenRouterModel[] = [];
 
     // Group models by provider
     const perplexityModels = modelIds.filter(isPerplexityModel);
     const openRouterModels = modelIds.filter(id => !isPerplexityModel(id));
 
-    // Check OpenRouter models
-    if (openRouterKey && openRouterModels.length > 0) {
+    // FREE mode: Fetch OpenRouter model list once
+    if (mode === 'free' && openRouterKey && openRouterModels.length > 0) {
+      try {
+        openRouterModelList = await fetchOpenRouterModelList(openRouterKey);
+        console.log(`Fetched ${openRouterModelList.length} models from OpenRouter catalog`);
+        
+        for (const modelId of openRouterModels) {
+          const result = checkModelInList(modelId, openRouterModelList);
+          results.push(result);
+          console.log(`${modelId}: ${result.isAvailable ? '✓' : '✗'} ${result.errorMessage || ''}`);
+        }
+      } catch (error) {
+        console.error('Error fetching OpenRouter model list:', error);
+        for (const modelId of openRouterModels) {
+          results.push({ modelId, isAvailable: false, errorMessage: 'Failed to fetch model list' });
+        }
+      }
+    }
+    // PING mode: Use chat completions API (consumes credits)
+    else if (mode === 'ping' && openRouterKey && openRouterModels.length > 0) {
       for (const modelId of openRouterModels) {
-        const result = await checkOpenRouterModel(openRouterKey, modelId);
+        const result = await pingOpenRouterModel(openRouterKey, modelId);
         results.push(result);
         console.log(`${modelId}: ${result.isAvailable ? '✓' : '✗'} (${result.responseTime}ms) ${result.errorMessage || ''}`);
-        // Small delay between checks to avoid rate limits
         await new Promise(resolve => setTimeout(resolve, 300));
       }
     } else if (openRouterModels.length > 0) {
@@ -200,23 +259,14 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Check Perplexity models
-    if (perplexityKey && perplexityModels.length > 0) {
-      for (const modelId of perplexityModels) {
-        const result = await checkPerplexityModel(perplexityKey, modelId);
-        results.push(result);
-        console.log(`${result.modelId}: ${result.isAvailable ? '✓' : '✗'} (${result.responseTime}ms) ${result.errorMessage || ''}`);
-        await new Promise(resolve => setTimeout(resolve, 300));
-      }
-    } else if (perplexityModels.length > 0) {
-      console.warn('PERPLEXITY_API_KEY not set, skipping Perplexity models');
-      for (const modelId of perplexityModels) {
-        const cleanId = modelId.startsWith('perplexity/') ? modelId : `perplexity/${modelId}`;
-        results.push({ modelId: cleanId, isAvailable: false, errorMessage: 'API key not configured' });
-      }
+    // Check Perplexity models (using hardcoded list in free mode)
+    for (const modelId of perplexityModels) {
+      const result = checkPerplexityModelInList(modelId);
+      results.push(result);
+      console.log(`${result.modelId}: ${result.isAvailable ? '✓' : '✗'} ${result.errorMessage || ''}`);
     }
 
-    // Upsert results to database
+    // Upsert health results to database
     for (const result of results) {
       const { error } = await supabase
         .from('model_health')
@@ -230,17 +280,69 @@ Deno.serve(async (req) => {
         });
 
       if (error) {
-        console.error(`Error upserting ${result.modelId}:`, error);
+        console.error(`Error upserting health for ${result.modelId}:`, error);
+      }
+    }
+
+    // Auto-toggle and sync metadata if requested
+    let toggled = { activated: 0, deactivated: 0 };
+    let synced = 0;
+
+    if (autoToggle || syncMetadata) {
+      for (const result of results) {
+        const updateData: Record<string, any> = {};
+        
+        if (autoToggle) {
+          updateData.is_active = result.isAvailable;
+        }
+        
+        if (syncMetadata && result.metadata) {
+          if (result.metadata.inputPrice !== undefined) {
+            updateData.input_price = result.metadata.inputPrice;
+          }
+          if (result.metadata.outputPrice !== undefined) {
+            updateData.output_price = result.metadata.outputPrice;
+          }
+          if (result.metadata.contextWindow !== undefined) {
+            updateData.context_window = result.metadata.contextWindow;
+          }
+        }
+        
+        if (Object.keys(updateData).length > 0) {
+          const { error } = await supabase
+            .from('ai_models')
+            .update(updateData)
+            .or(`model_id.eq.${result.modelId},id.eq.${result.modelId}`);
+          
+          if (error) {
+            console.error(`Error updating ${result.modelId}:`, error);
+          } else {
+            if (autoToggle) {
+              if (result.isAvailable) toggled.activated++;
+              else toggled.deactivated++;
+            }
+            if (syncMetadata && result.metadata) synced++;
+          }
+        }
       }
     }
 
     console.log(`Health check complete. Checked ${results.length} models.`);
+    if (autoToggle) {
+      console.log(`Auto-toggle: ${toggled.activated} activated, ${toggled.deactivated} deactivated`);
+    }
+    if (syncMetadata) {
+      console.log(`Metadata synced: ${synced} models`);
+    }
 
     return new Response(JSON.stringify({
       success: true,
+      mode,
       checked: results.length,
       available: results.filter(r => r.isAvailable).length,
       unavailable: results.filter(r => !r.isAvailable).length,
+      toggled: autoToggle ? toggled : undefined,
+      synced: syncMetadata ? synced : undefined,
       results,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
