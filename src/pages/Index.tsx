@@ -21,6 +21,7 @@ const Index = () => {
   const [selectedModel, setSelectedModel] = useState('google/gemma-3-27b-it:free'); // Default to a stable free model
   const [synthesisMode, setSynthesisMode] = useState(false);
   const [synthesisModelIds, setSynthesisModelIds] = useState<string[]>(SYNTHESIS_MODELS);
+  const [synthesisAggregatorId, setSynthesisAggregatorId] = useState<string | undefined>(undefined);
   const [isSystemControlOpen, setIsSystemControlOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
@@ -175,7 +176,7 @@ const Index = () => {
           throw new Error('선택된 모델 중 사용 가능한 모델이 없습니다. (로그인이 필요할 수 있습니다)');
         }
 
-        const result = await sendSynthesisRequest(content, conversationHistory, allowedModelIds);
+        const result = await sendSynthesisRequest(content, conversationHistory, allowedModelIds, synthesisAggregatorId);
 
         // Batch all responses to update state once
         const newAssistantMessages: Message[] = [
@@ -310,7 +311,11 @@ const Index = () => {
         open={isSystemControlOpen}
         onOpenChange={setIsSystemControlOpen}
         selectedModelIds={synthesisModelIds}
-        onApply={setSynthesisModelIds}
+        onApply={(modelIds, aggregatorId) => {
+          setSynthesisModelIds(modelIds);
+          setSynthesisAggregatorId(aggregatorId);
+        }}
+        aggregatorModelId={synthesisAggregatorId}
         isAdmin={isAdmin}
         isLoggedIn={!!session}
       />

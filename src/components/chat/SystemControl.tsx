@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Settings2, History, Users, X, Lock, Check } from 'lucide-react';
+import { Settings2, History, Users, X, Lock, Check, Wand2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ModelManagementContent } from "@/components/admin/ModelManagement";
 import { MemberManagement } from "@/components/admin/MemberManagement";
 import { PromptHistory } from "@/components/admin/PromptHistory";
@@ -15,7 +16,8 @@ interface SystemControlProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     selectedModelIds: string[];
-    onApply: (modelIds: string[]) => void;
+    onApply: (modelIds: string[], aggregatorModelId?: string) => void;
+    aggregatorModelId?: string;
     isAdmin?: boolean;
     isLoggedIn?: boolean;
 }
@@ -25,10 +27,12 @@ export const SystemControl = ({
     onOpenChange,
     selectedModelIds,
     onApply,
+    aggregatorModelId,
     isAdmin = false,
     isLoggedIn = false,
 }: SystemControlProps) => {
     const [localSelectedIds, setLocalSelectedIds] = useState<string[]>(selectedModelIds);
+    const [localAggregatorId, setLocalAggregatorId] = useState<string | undefined>(aggregatorModelId);
     const [isMemberManagementOpen, setIsMemberManagementOpen] = useState(false);
     const [isPromptHistoryOpen, setIsPromptHistoryOpen] = useState(false);
     const { isModelAvailable, lastChecked } = useModelHealth();
@@ -37,8 +41,9 @@ export const SystemControl = ({
     useEffect(() => {
         if (open) {
             setLocalSelectedIds(selectedModelIds);
+            setLocalAggregatorId(aggregatorModelId);
         }
-    }, [selectedModelIds, open]);
+    }, [selectedModelIds, aggregatorModelId, open]);
 
     const toggleModel = (modelId: string, isPremium: boolean) => {
         // Block premium models for non-logged-in users
@@ -52,9 +57,15 @@ export const SystemControl = ({
     };
 
     const handleApply = () => {
-        onApply(localSelectedIds);
+        onApply(localSelectedIds, localAggregatorId);
         onOpenChange(false);
     };
+
+    // Determine if the selected synthesis models include any premium model
+    const hasPremiumSelected = localSelectedIds.some(id => {
+        const model = models.find(m => m.id === id);
+        return model && model.inputPrice > 0;
+    });
 
     const freeModels = models.filter(m => m.inputPrice === 0);
     const premiumModels = models.filter(m => m.inputPrice > 0);
@@ -272,6 +283,55 @@ export const SystemControl = ({
                                         </div>
                                     </div>
                                 )}
+                            </div>
+
+                            {/* Aggregator Model Selection */}
+                            <div className="px-6 py-4 border-t border-border bg-muted/30 shrink-0">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        <Wand2 className="w-4 h-4 text-muted-foreground" />
+                                        <span className="text-sm font-medium text-foreground">합성 모델</span>
+                                    </div>
+                                    <Select
+                                        value={localAggregatorId || 'auto'}
+                                        onValueChange={(value) => setLocalAggregatorId(value === 'auto' ? undefined : value)}
+                                    >
+                                        <SelectTrigger className="flex-1 h-9 bg-card border-border">
+                                            <SelectValue placeholder="자동 선택" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="auto">
+                                                <div className="flex items-center gap-2">
+                                                    <span>자동 선택</span>
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {hasPremiumSelected ? '(Gemini Flash)' : '(Qwen 72B)'}
+                                                    </span>
+                                                </div>
+                                            </SelectItem>
+                                            {/* Free aggregator models */}
+                                            {freeModels.slice(0, 5).map((model) => (
+                                                <SelectItem key={model.id} value={model.id}>
+                                                    <div className="flex items-center gap-2">
+                                                        <span>{model.name}</span>
+                                                        <Badge variant="outline" className="text-[10px] px-1 py-0 border-green-500/30 text-green-500">Free</Badge>
+                                                    </div>
+                                                </SelectItem>
+                                            ))}
+                                            {/* Premium aggregator models */}
+                                            {isLoggedIn && premiumModels.slice(0, 5).map((model) => (
+                                                <SelectItem key={model.id} value={model.id}>
+                                                    <div className="flex items-center gap-2">
+                                                        <span>{model.name}</span>
+                                                        <Badge variant="outline" className="text-[10px] px-1 py-0 border-indigo-500/30 text-indigo-400">${model.inputPrice}/M</Badge>
+                                                    </div>
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-2">
+                                    합성 모델은 각 AI 모델의 응답을 종합하여 최종 답변을 생성합니다.
+                                </p>
                             </div>
 
                             {/* Footer */}
