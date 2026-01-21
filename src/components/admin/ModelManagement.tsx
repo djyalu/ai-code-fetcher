@@ -58,6 +58,7 @@ export const ModelManagementContent = () => {
     const [editingModel, setEditingModel] = useState<EditableModel | null>(null);
     const [pingingModelId, setPingingModelId] = useState<string | null>(null);
     const [pingAllRunning, setPingAllRunning] = useState(false);
+    const [syncRunning, setSyncRunning] = useState(false);
 
     // New Model State
     const [newModel, setNewModel] = useState<EditableModel>({
@@ -72,11 +73,39 @@ export const ModelManagementContent = () => {
         isActive: true
     });
 
+    // Free sync using OpenRouter /api/v1/models (no API credits consumed)
+    const handleFreeSync = async () => {
+        setSyncRunning(true);
+        try {
+            const { data, error } = await supabase.functions.invoke('check-model-health', {
+                body: { 
+                    mode: 'free',
+                    auto_toggle: true,
+                    sync_metadata: true
+                }
+            });
+
+            if (error) throw new Error(error.message);
+
+            const { available, unavailable, toggled, synced } = data || {};
+            
+            toast({ 
+                title: "✅ 무료 동기화 완료", 
+                description: `사용 가능: ${available}개, 불가: ${unavailable}개${toggled ? ` | 활성화: ${toggled.activated}, 비활성화: ${toggled.deactivated}` : ''}${synced ? ` | 메타데이터 동기화: ${synced}개` : ''}`
+            });
+            refreshModels();
+        } catch (e: any) {
+            toast({ variant: "destructive", title: "동기화 오류", description: e.message });
+        } finally {
+            setSyncRunning(false);
+        }
+    };
+
     const handlePing = async (modelId: string) => {
         setPingingModelId(modelId);
         try {
             const { data, error } = await supabase.functions.invoke('check-model-health', {
-                body: { model_ids: [modelId] }
+                body: { model_ids: [modelId], mode: 'ping' }
             });
 
             if (error) throw new Error(error.message);
@@ -105,7 +134,7 @@ export const ModelManagementContent = () => {
         try {
             const modelIds = models.map(m => m.id);
             const { data, error } = await supabase.functions.invoke('check-model-health', {
-                body: { model_ids: modelIds }
+                body: { model_ids: modelIds, mode: 'ping' }
             });
 
             if (error) throw new Error(error.message);
@@ -115,7 +144,7 @@ export const ModelManagementContent = () => {
 
             toast({ 
                 title: "전체 Ping 완료", 
-                description: `${available}/${total} 모델 사용 가능` 
+                description: `${available}/${total} 모델 사용 가능 (⚠️ API 크레딧 소비됨)` 
             });
             refreshModels();
         } catch (e: any) {
@@ -384,6 +413,20 @@ export const ModelManagementContent = () => {
                     <Button
                         variant="outline"
                         size="sm"
+                        onClick={handleFreeSync}
+                        disabled={syncRunning}
+                        className="text-cyan-500 border-cyan-500/30 hover:bg-cyan-500/10"
+                    >
+                        {syncRunning ? (
+                            <Loader2 className="w-3 h-3 mr-2 animate-spin" />
+                        ) : (
+                            <RefreshCw className="w-3 h-3 mr-2" />
+                        )}
+                        모델 동기화 (무료)
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
                         onClick={handlePingAll}
                         disabled={pingAllRunning}
                         className="text-green-500 border-green-500/30 hover:bg-green-500/10"
@@ -393,7 +436,7 @@ export const ModelManagementContent = () => {
                         ) : (
                             <Zap className="w-3 h-3 mr-2" />
                         )}
-                        전체 Ping
+                        전체 Ping (유료)
                     </Button>
                     <Button
                         variant="outline"
@@ -401,7 +444,7 @@ export const ModelManagementContent = () => {
                         onClick={handleSeed}
                         className="text-amber-500 border-amber-500/30 hover:bg-amber-500/10"
                     >
-                        <RefreshCw className="w-3 h-3 mr-2" />
+                        <Database className="w-3 h-3 mr-2" />
                         기본값 동기화
                     </Button>
                 </div>
