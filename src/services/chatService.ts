@@ -148,7 +148,8 @@ export const sendMessage = async (
 export const sendSynthesisRequest = async (
   userMessage: string,
   conversationHistory: { role: 'user' | 'assistant' | 'system'; content: string }[],
-  synthesisModelIds: string[] = SYNTHESIS_MODELS
+  synthesisModelIds: string[] = SYNTHESIS_MODELS,
+  customAggregatorModelId?: string
 ): Promise<{
   responses: { modelId: string; content: string }[];
   synthesis: string;
@@ -194,10 +195,14 @@ ${successfulResponses.map(r => `### ${r.modelId}\n${r.content}`).join('\n\n')}
 
 Please synthesize the above responses into a comprehensive answer.`;
 
-  // 선택된 모델에 유료 모델이 포함되어 있는지 확인하여 합성 모델 결정
-  const synthesisModel = hasPremiumModel(synthesisModelIds)
-    ? PREMIUM_SYNTHESIS_MODEL  // 유료 모델 포함 시: Gemini 2.0 Flash
-    : FREE_SYNTHESIS_MODEL;    // 무료 모델만: DeepSeek V3 Free
+  // Determine the aggregator model:
+  // 1. Use custom aggregator if provided
+  // 2. Otherwise, auto-select based on whether premium models are included
+  const synthesisModel = customAggregatorModelId
+    ? customAggregatorModelId
+    : hasPremiumModel(synthesisModelIds)
+      ? PREMIUM_SYNTHESIS_MODEL  // 유료 모델 포함 시: Gemini 2.0 Flash
+      : FREE_SYNTHESIS_MODEL;    // 무료 모델만: Qwen 72B
 
   const synthesisResponse = await sendMessage(
     [{ role: 'user', content: synthesisPrompt }],
