@@ -228,7 +228,7 @@ export const ModelSelector = ({
           </Tooltip>
         </TooltipProvider>
 
-        {synthesisMode && onConfigureSynthesis && isAdmin && (
+        {onConfigureSynthesis && isAdmin && (
           <Button
             variant="ghost"
             size="icon"
