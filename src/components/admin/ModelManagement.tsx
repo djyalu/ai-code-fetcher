@@ -398,16 +398,12 @@ export const ModelManagementContent = () => {
 
     return (
         <div className="flex flex-col h-full overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                        <Database className="w-5 h-5 text-muted-foreground" />
-                    </div>
-                    <div>
-                        <h2 className="text-lg font-semibold text-foreground">AI 모델 관리</h2>
-                        <p className="text-xs text-muted-foreground">모델 추가, 수정, 삭제 및 상태 확인</p>
-                    </div>
+            {/* Compact Header - Actions Only */}
+            <div className="flex items-center justify-between px-6 py-3 border-b border-border shrink-0 bg-muted/30">
+                <div className="flex items-center gap-2">
+                    <Database className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-medium text-foreground">AI 모델 관리</span>
+                    <span className="text-xs text-muted-foreground">모델 추가, 수정, 삭제 및 상태 확인</span>
                 </div>
                 <div className="flex gap-2">
                     <Button
@@ -451,7 +447,7 @@ export const ModelManagementContent = () => {
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto p-6 min-h-0">
+            <div className="flex-1 overflow-y-auto p-4 min-h-0">
                 {error && (
                     <div className="mb-4 p-4 rounded bg-destructive/10 border border-destructive/30 text-destructive flex items-center gap-2">
                         <AlertTriangle className="w-4 h-4" />
