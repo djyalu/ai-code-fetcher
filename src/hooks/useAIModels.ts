@@ -26,7 +26,10 @@ export const useAIModels = () => {
             }
 
             return data.map((m: any) => ({
-                id: m.id,
+                // IMPORTANT:
+                // UI와 chat 호출에서 사용하는 값은 DB의 uuid(id)가 아니라 실제 모델 식별자(model_id)여야 합니다.
+                // (uuid를 보내면 backend에서 "not a valid model ID" 400이 발생)
+                id: m.model_id,
                 name: m.name,
                 provider: m.provider,
                 description: m.description,
