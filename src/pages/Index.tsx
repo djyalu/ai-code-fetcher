@@ -20,7 +20,7 @@ const Index = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [selectedModel, setSelectedModel] = useState('google/gemma-3-27b-it:free'); // Default to a stable free model
   const [synthesisMode, setSynthesisMode] = useState(false);
-  const [synthesisModelIds, setSynthesisModelIds] = useState<string[]>(SYNTHESIS_MODELS);
+  const [synthesisModelIds, setSynthesisModelIds] = useState<string[]>([]);
   const [synthesisAggregatorId, setSynthesisAggregatorId] = useState<string | undefined>(undefined);
   const [isSystemControlOpen, setIsSystemControlOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
