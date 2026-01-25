@@ -1,9 +1,9 @@
 import { supabase } from '@/integrations/supabase/client';
 import { DEFAULT_SYSTEM_PROMPT, SYNTHESIS_PROMPT, SYNTHESIS_MODELS, getModelById } from '@/constants/models';
 
-// Synthesis 합성 모델 상수
-const FREE_SYNTHESIS_MODEL = 'qwen/qwen-2.5-72b-instruct:free';
-const PREMIUM_SYNTHESIS_MODEL = 'gemini-2.0-flash';
+// Synthesis 합성(aggregator) 모델 상수
+const FREE_SYNTHESIS_MODEL = 'google/gemma-3-27b-it:free';
+const PREMIUM_SYNTHESIS_MODEL = 'openai/gpt-4o-mini';
 
 // 유료 모델 포함 여부 확인
 export const hasPremiumModel = (modelIds: string[]): boolean => {
