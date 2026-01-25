@@ -30,15 +30,28 @@ const MODEL_MAP: Record<string, string> = {
   'gemini-2.5-flash-lite': 'google/gemini-2.5-flash-lite-preview',
   'claude-3-5-haiku': 'anthropic/claude-3.5-haiku',
 
-  // Free models
+  // Free models (full OpenRouter catalog)
   'google/gemini-2.0-flash-exp:free': 'google/gemini-2.0-flash-exp:free',
+  'google/gemma-3-27b-it:free': 'google/gemma-3-27b-it:free',
   'meta-llama/llama-3.3-70b-instruct:free': 'meta-llama/llama-3.3-70b-instruct:free',
+  'meta-llama/llama-3.1-405b-instruct:free': 'meta-llama/llama-3.1-405b-instruct:free',
   'deepseek/deepseek-r1-0528:free': 'deepseek/deepseek-r1-0528:free',
   'xiaomi/mimo-v2-flash:free': 'xiaomi/mimo-v2-flash:free',
   'qwen/qwen3-coder:free': 'qwen/qwen3-coder:free',
   'mistralai/devstral-2512:free': 'mistralai/devstral-2512:free',
   'openai/gpt-oss-120b:free': 'openai/gpt-oss-120b:free',
-  'google/gemma-3-27b-it:free': 'google/gemma-3-27b-it:free',
+  'nvidia/nemotron-3-nano-30b-a3b:free': 'nvidia/nemotron-3-nano-30b-a3b:free',
+  'nousresearch/hermes-3-llama-3.1-405b:free': 'nousresearch/hermes-3-llama-3.1-405b:free',
+  'liquid/lfm-2.5-1.2b-instruct:free': 'liquid/lfm-2.5-1.2b-instruct:free',
+
+  // Paid models (with OpenRouter prefix)
+  'openai/gpt-4o-mini': 'openai/gpt-4o-mini',
+  'google/gemini-2.0-flash-001': 'google/gemini-2.0-flash-001',
+  'google/gemini-2.5-flash-lite': 'google/gemini-2.5-flash-lite-preview-06-05',
+  'deepseek/deepseek-chat-v3-0324': 'deepseek/deepseek-chat-v3-0324',
+  'x-ai/grok-4-fast': 'x-ai/grok-4-fast',
+  'x-ai/grok-code-fast-1': 'x-ai/grok-code-fast-1',
+  'gpt-4o': 'openai/gpt-4o',
 };
 
 function sanitizeMessagesForModel(model: string, messages: ChatMessage[]): ChatMessage[] {
